@@ -1,0 +1,8 @@
+# Ignore everything, then whitelist only what the engine needs.
+*
+!app
+!db
+!lib
+!Gemfile
+!fizzy-time_tracking.gemspec
+!LICENSE.md

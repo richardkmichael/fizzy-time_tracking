@@ -1,6 +1,6 @@
 class CreateTimeEntries < ActiveRecord::Migration[8.2]
   def change
-    create_table :time_entries, id: :uuid do |t|
+    create_table :time_entries, id: :uuid, if_not_exists: true do |t|
       t.uuid :account_id, null: false
       t.uuid :card_id, null: false
       t.uuid :creator_id, null: false
