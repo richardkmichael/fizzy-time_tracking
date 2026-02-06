@@ -1,0 +1,20 @@
+<div id="<%= dom_id(card, :time_tracking) %>" class="card__time-tracking">
+  <div data-controller="dialog"
+        data-action="keydown.esc->dialog#close click@document->dialog#closeOnClickOutside mouseenter->dialog#loadLazyFrames" <%= "hidden" if card.closed? %>>
+    <button class="card__time-tracking-button btn card__hide-on-index" style="--btn-background: var(--card-bg-color);"
+        data-controller="tooltip hotkey" data-action="click->dialog#open:stop keydown.l@document->hotkey#click">
+      <%= icon_tag "clock" %>
+      <span class="for-screen-reader">Log time</span>
+    </button>
+
+    <dialog class="popup panel flex-column align-start justify-start fill-white shadow txt-small"
+        data-dialog-target="dialog"
+        data-action="turbo:before-morph-attribute->dialog#preventCloseOnMorphing turbo:submit-end->dialog#close">
+      <%= turbo_frame_tag card, :time_tracking, src: new_card_time_entry_path(card), loading: :lazy, refresh: :morph %>
+    </dialog>
+  </div>
+
+  <% if card.total_minutes > 0 %>
+    <span class="txt-small txt-ink-lighter" id="<%= dom_id(card, :time_logged) %>"><%= card.total_duration %></span>
+  <% end %>
+</div>

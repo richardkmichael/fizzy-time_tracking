@@ -1,0 +1,41 @@
+<%= turbo_frame_tag @card, :time_tracking do %>
+  <div class="flex-column full-width"
+    data-controller="form navigable-list"
+    data-navigable-list-actionable-items-value="true"
+    data-action="dialog:show@document->navigable-list#reset"
+  >
+    <div class="flex align-start justify-space-between">
+      <strong class="popup__title">Log time…</strong><kbd class="txt-xx-small hide-on-touch">l</kbd>
+    </div>
+
+    <%= form_with model: TimeEntry.new, url: card_time_entries_path(@card),
+          id: dom_id(@card, :time_entry_form),
+          class: "flex flex-column gap-half full-width margin-block-half" do |form| %>
+      <div class="flex gap-half">
+        <%= form.number_field :hours, min: 0, step: 1, placeholder: "Hours", class: "input txt-small" %>
+        <%= form.number_field :minutes, min: 0, max: 59, step: 1, placeholder: "Min", class: "input txt-small" %>
+      </div>
+      <%= form.date_field :date, value: Date.current, required: true, class: "input txt-small full-width" %>
+      <%= form.text_field :description, placeholder: "Description (optional)", class: "input txt-small full-width" %>
+    <% end %>
+
+    <ul class="popup__list">
+      <div class="flex gap-half">
+        <li class="popup__item flex-item-grow" data-navigable-list-target="item">
+          <%= button_tag type: "submit", form: dom_id(@card, :time_entry_form), name: "commit", value: "add",
+                class: "btn popup__btn btn--time-add", data: { form_target: "submit" } do %>
+            <%= icon_tag "add" %>
+            <span>Add</span>
+          <% end %>
+        </li>
+        <li class="popup__item flex-item-grow" data-navigable-list-target="item">
+          <%= button_tag type: "submit", form: dom_id(@card, :time_entry_form), name: "commit", value: "remove",
+                class: "btn popup__btn btn--time-remove" do %>
+            <%= icon_tag "minus" %>
+            <span>Remove</span>
+          <% end %>
+        </li>
+      </div>
+    </ul>
+  </div>
+<% end %>

@@ -1,0 +1,1 @@
+<%= turbo_stream.replace [ @card, :time_tracking ], partial: "cards/time_entries/button", locals: { card: @card.reload } %>

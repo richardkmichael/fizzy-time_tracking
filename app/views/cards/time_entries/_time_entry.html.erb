@@ -1,0 +1,27 @@
+<%= turbo_frame_tag time_entry, :container do %>
+  <div id="<%= dom_id(time_entry) %>" class="time-entry align-start full-width">
+    <figure class="time-entry__avatar flex-item-no-shrink" aria-hidden="true">
+      <%= avatar_tag time_entry.creator, hidden_for_screen_reader: true %>
+    </figure>
+
+    <div class="time-entry__content flex flex-column flex-item-grow full-width">
+      <div class="time-entry__author flex align-center gap-half">
+        <h3 class="font-weight-normal txt-normal flex-item-justify-start min-width overflow-ellipsis">
+          <strong><%= time_entry.creator.name %></strong>
+          <span class="time-entry__timestamp">
+            <%= local_datetime_tag time_entry.created_at, style: :agoorweekday %>,
+            <%= local_datetime_tag time_entry.created_at, style: :time %>
+          </span>
+        </h3>
+
+        <%= link_to edit_card_time_entry_path(time_entry.card, time_entry),
+              class: "time-entry__edit btn btn--circle borderless translucent", data: { only_visible_to_you: true } do %>
+          <%= icon_tag "menu-dots-horizontal" %>
+          <span class="for-screen-reader">Edit this time entry</span>
+        <% end %>
+      </div>
+
+      <p class="txt-small"><%= time_entry.total_minutes.negative? ? "Removed" : "Added" %> <%= time_entry.duration %><% if time_entry.description.present? %> — <%= time_entry.description %><% end %></p>
+    </div>
+  </div>
+<% end %>

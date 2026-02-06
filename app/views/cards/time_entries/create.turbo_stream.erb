@@ -1,0 +1,3 @@
+<%= turbo_stream.before [ @card, :new_comment ], partial: "cards/comments/comment", locals: { comment: @system_comment } if @system_comment %>
+
+<%= turbo_stream.replace [ @card, :time_tracking ], partial: "cards/time_entries/button", locals: { card: @card.reload } %>
