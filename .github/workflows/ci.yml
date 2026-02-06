@@ -1,69 +1,70 @@
 name: CI
 
 on:
-  pull_request:
   push:
-    branches: [ development ]
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "0 6 * * 1" # Weekly Monday 6am UTC
+  workflow_dispatch:
+    inputs:
+      fizzy_ref:
+        description: "Fizzy git ref (branch, tag, or SHA)"
+        default: "main"
 
 jobs:
-  lint:
-    runs-on: ubuntu-latest
-    env:
-      RUBY_VERSION: 3.4.7
-      RUBOCOP_CACHE_ROOT: tmp/rubocop
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
-
-      - name: Set up Ruby
-        uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: ${{ env.RUBY_VERSION }}
-          bundler-cache: true
-
-      - name: Prepare RuboCop cache
-        uses: actions/cache@v4
-        env:
-          DEPENDENCIES_HASH: ${{ hashFiles('**/.rubocop.yml', '**/.rubocop_todo.yml', 'Gemfile.lock') }}
-        with:
-          path: ${{ env.RUBOCOP_CACHE_ROOT }}
-          key: rubocop-${{ runner.os }}-${{ env.RUBY_VERSION }}-${{ env.DEPENDENCIES_HASH }}-${{ github.ref_name == github.event.repository.default_branch && github.run_id || 'default' }}
-          restore-keys: |
-            rubocop-${{ runner.os }}-${{ env.RUBY_VERSION }}-${{ env.DEPENDENCIES_HASH }}-
-
-      - name: Lint code for consistent style
-        run: bin/rubocop -f github
-
   test:
     runs-on: ubuntu-latest
 
-    # services:
-    #  redis:
-    #    image: valkey/valkey:8
-    #    ports:
-    #      - 6379:6379
-    #    options: --health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s --health-retries 5
+    env:
+      FIZZY_REF: ${{ inputs.fizzy_ref || 'main' }}
+
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
+      - name: Checkout engine
+        uses: actions/checkout@v4
+        with:
+          path: engine
+
+      - name: Checkout Fizzy
+        uses: actions/checkout@v4
+        with:
+          repository: basecamp/fizzy
+          ref: ${{ env.FIZZY_REF }}
+          path: fizzy
 
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: 3.4.7
-          bundler-cache: true
+          working-directory: fizzy
+          bundler-cache: false
 
-      - name: Run tests
-        env:
-          RAILS_ENV: test
-          # RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
-          # REDIS_URL: redis://localhost:6379/0
-        run: bin/rails db:test:prepare test
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libvips-dev imagemagick libopenslide-dev
 
-      - name: Keep screenshots from failed system tests
-        uses: actions/upload-artifact@v5
-        if: failure()
-        with:
-          name: screenshots
-          path: ${{ github.workspace }}/tmp/screenshots
-          if-no-files-found: ignore
+      - name: Add engine to Fizzy Gemfile
+        working-directory: fizzy
+        run: |
+          echo 'gem "fizzy-time_tracking", path: "../engine"' >> Gemfile
+
+      - name: Bundle install
+        working-directory: fizzy
+        run: bundle install
+
+      - name: Run install generator
+        working-directory: fizzy
+        run: bin/rails g fizzy_time_tracking:install
+
+      - name: Prepare database
+        working-directory: fizzy
+        run: bin/rails db:prepare
+
+      - name: Run engine tests
+        working-directory: fizzy
+        run: bin/rails test ../engine/test/
+
+      - name: Run host tests
+        working-directory: fizzy
+        run: bin/rails test
