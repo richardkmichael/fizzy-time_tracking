@@ -1,0 +1,28 @@
+logo_design_time:
+  id: <%= ActiveRecord::FixtureSet.identify("logo_design_time", :uuid) %>
+  card: logo_uuid
+  creator: david_uuid
+  total_minutes: 120
+  date: <%= 2.days.ago.to_date %>
+  description: Logo design review
+  created_at: <%= 2.days.ago %>
+  account: 37s_uuid
+
+logo_review_time:
+  id: <%= ActiveRecord::FixtureSet.identify("logo_review_time", :uuid) %>
+  card: logo_uuid
+  creator: kevin_uuid
+  total_minutes: 30
+  date: <%= 1.day.ago.to_date %>
+  description: Quick review pass
+  created_at: <%= 1.day.ago %>
+  account: 37s_uuid
+
+layout_time:
+  id: <%= ActiveRecord::FixtureSet.identify("layout_time", :uuid) %>
+  card: layout_uuid
+  creator: david_uuid
+  total_minutes: 60
+  date: <%= Date.current %>
+  created_at: <%= Time.current %>
+  account: 37s_uuid
