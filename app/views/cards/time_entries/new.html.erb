@@ -13,7 +13,7 @@
           class: "flex flex-column gap-half full-width margin-block-half" do |form| %>
       <div class="flex gap-half">
         <%= form.number_field :hours, min: 0, step: 1, placeholder: "Hours", class: "input txt-small" %>
-        <%= form.number_field :minutes, min: 0, max: 59, step: 1, placeholder: "Min", class: "input txt-small" %>
+        <%= form.number_field :minutes, min: 0, max: 55, step: 5, placeholder: "Min", class: "input txt-small" %>
       </div>
       <%= form.date_field :date, value: Date.current, required: true, class: "input txt-small full-width" %>
       <%= form.text_field :description, placeholder: "Description (optional)", class: "input txt-small full-width" %>

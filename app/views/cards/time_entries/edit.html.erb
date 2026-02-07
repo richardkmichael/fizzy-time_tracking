@@ -9,7 +9,7 @@
             data: { controller: "form", action: "keydown.ctrl+enter->form#submit:prevent keydown.meta+enter->form#submit:prevent keydown.esc->form#cancel:stop" } do |form| %>
         <div class="flex align-center gap full-width">
           <%= form.number_field :hours, value: @time_entry.hours_value, min: 0, step: 1, placeholder: "Hours", class: "input input--small time-entry__form-input" %>
-          <%= form.number_field :minutes, value: @time_entry.minutes_value, min: 0, max: 59, step: 1, placeholder: "Minutes", class: "input input--small time-entry__form-input" %>
+          <%= form.number_field :minutes, value: @time_entry.minutes_value, min: 0, max: 55, step: 5, placeholder: "Minutes", class: "input input--small time-entry__form-input" %>
           <%= form.date_field :date, required: true, class: "input input--small time-entry__form-input" %>
           <%= form.text_field :description, placeholder: "Description (optional)", class: "input input--small flex-item-grow time-entry__form-input" %>
         </div>

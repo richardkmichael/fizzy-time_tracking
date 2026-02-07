@@ -1,3 +1,8 @@
+.card__time-tracking input[type="number"]::-webkit-outer-spin-button,
+.card__time-tracking input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: auto;
+}
+
 @layer components {
   .icon--clock { --svg: url("clock.svg"); }
 
@@ -25,6 +30,7 @@
     .input {
       --input-padding: 0.2em 0.5em;
     }
+
   }
 
   .card__time-tracking-button {
