@@ -21,12 +21,17 @@ module Fizzy
               resources :time_entries
             end
           end
+
+          resolve "TimeEntry" do |time_entry, options|
+            route_for :card, time_entry.card, options
+          end
         end
       end
 
       config.to_prepare do
         ::Card.include Card::Timeable
         ::Card::Eventable::SystemCommenter.prepend Card::Eventable::SystemCommenter::TimeTracking
+        ::Event::Description.prepend Event::Description::TimeTracking
 
         unless User::DayTimeline::TIMELINEABLE_ACTIONS.include?("time_entry_created")
           User::DayTimeline::TIMELINEABLE_ACTIONS << "time_entry_created"
