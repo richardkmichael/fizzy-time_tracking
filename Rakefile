@@ -22,12 +22,21 @@ require "bundler/gem_tasks"
 app_rakefile = File.join(FIZZY_PATH, "Rakefile")
 if File.exist?(app_rakefile)
   APP_RAKEFILE = app_rakefile
+  Dir.chdir(FIZZY_PATH)
   load "rails/tasks/engine.rake"
 end
 
 task default: :test
 
-unless Rake::Task.task_defined?(:test)
+if File.exist?(app_rakefile)
+  engine_test_dirs = Dir[File.join(ENGINE_ROOT, "test", "*/")]
+    .reject { |d| d.end_with?("fizzy/", "fixtures/") }
+
+  desc "Run engine tests via Fizzy host app"
+  task :test do
+    in_fizzy "bin/rails", "test", *engine_test_dirs
+  end
+else
   task :test do
     abort "Fizzy host app not found at #{FIZZY_PATH}. Run `rake setup` first."
   end
