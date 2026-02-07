@@ -3,6 +3,7 @@ module FizzyTimeTracking
     desc "Uninstall Fizzy Time Tracking: remove injected lines from host views"
 
     CONTAINER_PATH = "app/views/cards/_container.html.erb"
+    DRAFT_CONTAINER_PATH = "app/views/cards/drafts/_container.html.erb"
     CONTAINER_LINE = '          <%= render "cards/time_entries/button", card: card if Fizzy.time_tracking? %>'
 
     HEAD_PATH = "app/views/layouts/shared/_head.html.erb"
@@ -10,6 +11,10 @@ module FizzyTimeTracking
 
     def remove_button_from_card_header
       remove_line CONTAINER_PATH, CONTAINER_LINE
+    end
+
+    def remove_button_from_draft_card_header
+      remove_line DRAFT_CONTAINER_PATH, CONTAINER_LINE
     end
 
     def remove_stylesheet_from_head

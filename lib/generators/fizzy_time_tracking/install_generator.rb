@@ -3,6 +3,7 @@ module FizzyTimeTracking
     desc "Install Fizzy Time Tracking: inject button and stylesheet into host views"
 
     CONTAINER_PATH = "app/views/cards/_container.html.erb"
+    DRAFT_CONTAINER_PATH = "app/views/cards/drafts/_container.html.erb"
     CONTAINER_ANCHOR = '<%= render "cards/display/perma/tags", card: card %>'
     CONTAINER_LINE = '<%= render "cards/time_entries/button", card: card if Fizzy.time_tracking? %>'
 
@@ -12,6 +13,10 @@ module FizzyTimeTracking
 
     def inject_button_into_card_header
       inject_line_after CONTAINER_PATH, CONTAINER_ANCHOR, CONTAINER_LINE, indent: 10
+    end
+
+    def inject_button_into_draft_card_header
+      inject_line_after DRAFT_CONTAINER_PATH, CONTAINER_ANCHOR, CONTAINER_LINE, indent: 10
     end
 
     def inject_stylesheet_into_head
