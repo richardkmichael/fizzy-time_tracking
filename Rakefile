@@ -7,7 +7,7 @@
 # Gemfile before Bundler loads — Fizzy's bundle includes this engine as a
 # path gem, so everything resolves. On first clone (before `rake setup`),
 # Fizzy isn't present yet; we fall back to the engine's own Gemfile so that
-# gem-building tasks still work.
+# rake setup can bootstrap.
 
 ENGINE_ROOT = __dir__
 FIZZY_PATH  = ENV.fetch("FIZZY_PATH") { File.expand_path("test/fizzy", ENGINE_ROOT) }
@@ -17,18 +17,10 @@ fizzy_gemfile = File.join(FIZZY_PATH, "Gemfile")
 ENV["BUNDLE_GEMFILE"] = fizzy_gemfile if File.exist?(fizzy_gemfile)
 
 require "bundler/setup"
-require "bundler/gem_tasks"
-
-app_rakefile = File.join(FIZZY_PATH, "Rakefile")
-if File.exist?(app_rakefile)
-  APP_RAKEFILE = app_rakefile
-  Dir.chdir(FIZZY_PATH)
-  load "rails/tasks/engine.rake"
-end
 
 task default: :test
 
-if File.exist?(app_rakefile)
+if File.directory?(FIZZY_PATH)
   engine_test_dirs = Dir[File.join(ENGINE_ROOT, "test", "*/")]
     .reject { |d| d.end_with?("fizzy/", "fixtures/") }
 
@@ -40,6 +32,37 @@ else
   task :test do
     abort "Fizzy host app not found at #{FIZZY_PATH}. Run `rake setup` first."
   end
+end
+
+desc "Start the development server"
+task :server do
+  in_fizzy "bin/dev"
+end
+
+IMAGE = "fizzy-time_tracking"
+DEFAULT_VOLUME = "#{IMAGE}-data"
+
+desc "Run the production Docker image (rake run[./data] or rake run[my-volume])"
+task :run, [ :storage ] do |_t, args|
+  storage = args.fetch(:storage, DEFAULT_VOLUME)
+  volume = if storage.start_with?("/", ".")
+    File.expand_path(storage, ENGINE_ROOT)
+  else
+    storage
+  end
+
+  secret_key = `docker run --rm #{IMAGE} bin/rails secret`.chomp
+  sh "docker", "run",
+    "-p", "8080:80",
+    "-e", "SECRET_KEY_BASE=#{secret_key}",
+    "-e", "DISABLE_SSL=true",
+    "-v", "#{volume}:/rails/storage",
+    IMAGE
+end
+
+desc "Build the production Docker image (development uses `rake server`)"
+task :build do
+  Dir.chdir(ENGINE_ROOT) { sh "docker", "build", "-t", "fizzy-time_tracking", "." }
 end
 
 desc "Clone and configure Fizzy host app for running engine tests"

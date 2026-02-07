@@ -1,10 +1,15 @@
 # Fizzy Time Tracking
 
-A Rails engine that adds per-card time tracking to [Fizzy](https://github.com/basecamp/fizzy). Log time, remove time, and view totals directly from the card interface.
+Per-card time tracking for [Fizzy](https://github.com/basecamp/fizzy). Log time, remove time, and
+view totals directly from the card interface.
+
+This is an application — it produces a deployable Fizzy with time tracking — not a reusable gem. The
+engine architecture is just the wiring mechanism for hooking into Fizzy.
 
 ## Setup
 
-Clone the repo and run the setup task, which clones Fizzy into `test/fizzy/`, wires in the engine, and prepares the database:
+Clone the repo and run the setup task, which clones Fizzy into `test/fizzy/`, wires in the engine,
+and prepares the database:
 
 ```bash
 git clone https://github.com/richardkmichael/fizzy-time_tracking.git
@@ -29,10 +34,11 @@ FIZZY_PATH=/path/to/fizzy rake setup
 After setup, start the Fizzy dev server with the engine loaded:
 
 ```bash
-cd test/fizzy && bin/dev
+rake server
 ```
 
-Or if you used `FIZZY_PATH`, run `bin/dev` from that directory. Changes to engine files (models, views, controllers, CSS) are picked up automatically — no need to copy files or re-run setup.
+Changes to engine files (models, views, controllers, CSS) are picked up automatically — no need to
+copy files or re-run setup.
 
 ## Testing
 
@@ -40,22 +46,38 @@ Or if you used `FIZZY_PATH`, run `bin/dev` from that directory. Changes to engin
 rake test
 ```
 
-This runs the engine's test suite (model, controller, integration, and system tests) inside the Fizzy host app. CI also runs the full Fizzy test suite to catch regressions.
+This runs the engine's test suite (model, controller, integration, and system tests) inside the
+Fizzy host app. CI also runs the full Fizzy test suite to catch regressions.
 
 ## Deployment
 
-The included Dockerfile layers the engine onto the public Fizzy image. Build and push to your container registry:
+Build the production Docker image, which layers the engine onto the public Fizzy image:
 
 ```bash
-docker build -t ghcr.io/richardkmichael/fizzy-time_tracking:latest .
-docker push ghcr.io/richardkmichael/fizzy-time_tracking:latest
+rake build
 ```
 
-The image is a drop-in replacement for `ghcr.io/basecamp/fizzy:main` with time tracking enabled. Deploy it the same way you deploy Fizzy — just point at the new image and run migrations:
+To test the image locally:
 
 ```bash
-bin/rails db:migrate
+rake run
 ```
+
+This uses a Docker named volume for SQLite storage. Pass a path to bind mount a directory instead:
+
+```bash
+rake run[./data]
+```
+
+To push to a container registry, tag and push:
+
+```bash
+docker tag fizzy-time_tracking ghcr.io/you/fizzy-time_tracking
+docker push ghcr.io/you/fizzy-time_tracking
+```
+
+The image is a drop-in replacement for `ghcr.io/basecamp/fizzy:main` with time tracking enabled.
+Deploy it the same way you [deploy Fizzy](https://github.com/basecamp/fizzy/blob/main/docs/docker-deployment.md).
 
 ## How it works
 
