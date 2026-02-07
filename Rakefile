@@ -28,6 +28,13 @@ if File.directory?(FIZZY_PATH)
   task :test do
     in_fizzy "bin/rails", "test", *engine_test_dirs
   end
+
+  namespace :test do
+    desc "Run Fizzy's own test suite (catches regressions in the host app)"
+    task :fizzy do
+      in_fizzy "bin/rails", "test"
+    end
+  end
 else
   task :test do
     abort "Fizzy host app not found at #{FIZZY_PATH}. Run `rake setup` first."
@@ -84,7 +91,7 @@ def in_fizzy(*cmd)
 end
 
 def clone_fizzy
-  if File.directory?(FIZZY_PATH)
+  if File.exist?(File.join(FIZZY_PATH, "Gemfile"))
     puts "Fizzy already present at #{FIZZY_PATH}, skipping clone."
   else
     sh "git", "clone", "https://github.com/basecamp/fizzy.git", FIZZY_PATH,

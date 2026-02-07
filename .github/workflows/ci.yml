@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [development]
   pull_request:
-    branches: [main]
+    branches: [development]
   schedule:
     - cron: "0 6 * * 1" # Weekly Monday 6am UTC
   workflow_dispatch:
@@ -19,52 +19,35 @@ jobs:
 
     env:
       FIZZY_REF: ${{ inputs.fizzy_ref || 'main' }}
+      BUNDLE_PATH: vendor/bundle
 
     steps:
       - name: Checkout engine
         uses: actions/checkout@v4
-        with:
-          path: engine
-
-      - name: Checkout Fizzy
-        uses: actions/checkout@v4
-        with:
-          repository: basecamp/fizzy
-          ref: ${{ env.FIZZY_REF }}
-          path: fizzy
 
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
-          working-directory: fizzy
-          bundler-cache: false
+          ruby-version: "3.4"
+          bundler-cache: true
 
       - name: Install system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y libvips-dev imagemagick libopenslide-dev
 
-      - name: Add engine to Fizzy Gemfile
-        working-directory: fizzy
-        run: |
-          echo 'gem "fizzy-time_tracking", path: "../engine"' >> Gemfile
+      - name: Cache Fizzy bundle
+        uses: actions/cache@v4
+        with:
+          path: test/fizzy/vendor/bundle
+          key: fizzy-bundle-${{ runner.os }}-${{ env.FIZZY_REF }}-${{ github.run_id }}
+          restore-keys: fizzy-bundle-${{ runner.os }}-${{ env.FIZZY_REF }}-
 
-      - name: Bundle install
-        working-directory: fizzy
-        run: bundle install
-
-      - name: Run install generator
-        working-directory: fizzy
-        run: bin/rails g fizzy_time_tracking:install
-
-      - name: Prepare database
-        working-directory: fizzy
-        run: bin/rails db:prepare
+      - name: Set up Fizzy host app
+        run: bundle exec rake setup
 
       - name: Run engine tests
-        working-directory: fizzy
-        run: bin/rails test ../engine/test/
+        run: bundle exec rake test
 
       - name: Run host tests
-        working-directory: fizzy
-        run: bin/rails test
+        run: bundle exec rake test:fizzy
