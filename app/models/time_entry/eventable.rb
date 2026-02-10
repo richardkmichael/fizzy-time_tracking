@@ -8,7 +8,7 @@ module TimeEntry::Eventable
   end
 
   def event_was_created(event)
-    Card::Eventable::SystemCommenter.new(card, event).comment
+    Card::Eventable::SystemCommenter.new(card, event).comment if card.commentable?
     card.touch_last_active_at
   end
 

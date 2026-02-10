@@ -20,6 +20,17 @@ class Cards::TimeEntriesControllerTest < ActionDispatch::IntegrationTest
     assert_equal 90, TimeEntry.last.total_minutes
   end
 
+  test "create on a draft card" do
+    card = cards(:logo)
+    card.drafted!
+
+    assert_difference -> { card.time_entries.count }, +1 do
+      post card_time_entries_path(card), params: { time_entry: { hours: 1, minutes: 0, date: Date.current } }, as: :turbo_stream
+    end
+
+    assert_response :success
+  end
+
   test "create with only minutes" do
     assert_difference -> { cards(:logo).time_entries.count }, +1 do
       post card_time_entries_path(cards(:logo)), params: { time_entry: { minutes: 45, date: Date.current } }, as: :turbo_stream
