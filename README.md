@@ -79,6 +79,13 @@ docker push ghcr.io/you/fizzy-time_tracking
 The image is a drop-in replacement for `ghcr.io/basecamp/fizzy:main` with time tracking enabled.
 Deploy it the same way you [deploy Fizzy](https://github.com/basecamp/fizzy/blob/main/docs/docker-deployment.md).
 
+## Reverting to upstream Fizzy
+
+This image modifies your database. If you later switch back to the official `basecamp/fizzy` image,
+orphaned records will cause errors on cards where time was logged. Read
+[UNINSTALLING.md](UNINSTALLING.md) before deploying this image so you understand the cleanup
+procedure.
+
 ## How it works
 
 The engine:
