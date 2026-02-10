@@ -1,10 +1,10 @@
 # Uninstalling Fizzy Time Tracking
 
 If you've been running the `fizzy-time_tracking` Docker image and want to revert
-to the official `basecamp/fizzy` image, you'll need to clean up the database
+to the official `basecamp/fizzy` image, you'll need to uninstall the database
 artifacts left behind by the engine.
 
-## Why cleanup is needed
+## Why uninstalling is needed
 
 The time tracking engine creates a `time_entries` table and writes records into
 several of Fizzy's own tables (events, notifications, webhook deliveries). When
@@ -13,22 +13,37 @@ remains. Orphaned event records with `eventable_type: "TimeEntry"` will cause
 errors when Fizzy tries to load the missing `TimeEntry` class — for example,
 when displaying card activity timelines or processing notifications.
 
-## Running the cleanup
+## Running the uninstall
 
-1. Switch to the official `basecamp/fizzy` image (the same database volume should
-   be mounted).
+If you have the fizzy-time_tracking repo checked out, use the rake task:
 
-2. Download the cleanup script from this repository:
+```
+rake uninstall              # uses default Docker volume
+rake uninstall[./data]      # bind-mounted directory
+```
+
+Otherwise, run manually. All commands use the official Fizzy image with your
+existing storage volume mounted.
+
+1. Download the uninstall script:
 
    ```
    curl -O https://raw.githubusercontent.com/richardkmichael/fizzy-time_tracking/main/remove_time_tracking.rb
    ```
 
-3. Run it:
+2. Run it against your database. Replace `YOUR_VOLUME` with your storage volume
+   name or bind mount path (the same one you used with the time tracking image):
 
    ```
-   RAILS_ENV=production bin/rails runner remove_time_tracking.rb
+   docker run --rm \
+     -e SECRET_KEY_BASE_DUMMY=1 \
+     -v YOUR_VOLUME:/rails/storage \
+     -v $(pwd)/remove_time_tracking.rb:/rails/remove_time_tracking.rb \
+     ghcr.io/basecamp/fizzy:main \
+     bin/rails runner remove_time_tracking.rb
    ```
+
+3. Start Fizzy normally with the official image.
 
 The script is idempotent — running it multiple times is safe.
 
@@ -57,13 +72,21 @@ timestamp (this can happen depending on existing migrations), the script will
 print a warning. To find and remove the orphaned entry:
 
 ```
-RAILS_ENV=production bin/rails db:migrate:status
+docker run --rm \
+  -e SECRET_KEY_BASE_DUMMY=1 \
+  -v YOUR_VOLUME:/rails/storage \
+  ghcr.io/basecamp/fizzy:main \
+  bin/rails db:migrate:status
 ```
 
 Look for a line with `NO FILE` — that's the orphaned migration. Remove it with:
 
 ```
-RAILS_ENV=production bin/rails runner \
+docker run --rm \
+  -e SECRET_KEY_BASE_DUMMY=1 \
+  -v YOUR_VOLUME:/rails/storage \
+  ghcr.io/basecamp/fizzy:main \
+  bin/rails runner \
   "ActiveRecord::Base.connection.execute(\"DELETE FROM schema_migrations WHERE version = 'THE_VERSION'\")"
 ```
 

@@ -24,7 +24,17 @@ module FizzyTimeTracking
     end
 
     def install_migrations
-      rake "fizzy_time_tracking_engine:install:migrations"
+      source = Fizzy::TimeTracking::Engine.root.join("db", "migrate").to_s
+      destination = File.join(destination_root, "db", "migrate")
+
+      copied = ActiveRecord::Migration.copy(
+        destination,
+        { fizzy_time_tracking_engine: source },
+        on_copy: method(:restore_original_version),
+        on_skip: ->(_, migration) { say_status :skip, migration.name.underscore, :yellow }
+      )
+
+      copied.each { |migration| say_status :copied, File.basename(migration.filename) }
     end
 
     def display_post_install
@@ -35,6 +45,20 @@ module FizzyTimeTracking
     end
 
     private
+      # Migration.copy assigns a new timestamp based on Time.now. Rename the
+      # copied file to preserve the engine's original version so that repeated
+      # Docker builds don't accumulate orphaned schema_migrations entries.
+      def restore_original_version(_scope, migration, old_path)
+        original_version = File.basename(old_path).match(/^(\d+)/)[1]
+
+        old_file = migration.filename
+        new_file = old_file.sub(migration.version.to_s, original_version)
+        File.rename(old_file, new_file)
+
+        migration.version = original_version.to_i
+        migration.filename = new_file
+      end
+
       def inject_line_after(path, anchor, line, indent: 0)
         file = File.join(destination_root, path)
 

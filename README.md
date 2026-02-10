@@ -51,9 +51,17 @@ Fizzy host app. CI also runs the full Fizzy test suite to catch regressions.
 
 ## Deployment
 
-Build the production Docker image, which layers the engine onto the public Fizzy image:
+Build the production Docker image, which layers the engine onto `ghcr.io/basecamp/fizzy:main`:
 
 ```bash
+rake build
+```
+
+Docker uses the locally cached base image if one exists. To pick up upstream Fizzy changes, pull the
+latest image first:
+
+```bash
+docker pull ghcr.io/basecamp/fizzy:main
 rake build
 ```
 
@@ -83,8 +91,8 @@ Deploy it the same way you [deploy Fizzy](https://github.com/basecamp/fizzy/blob
 
 This image modifies your database. If you later switch back to the official `basecamp/fizzy` image,
 orphaned records will cause errors on cards where time was logged. Read
-[UNINSTALLING.md](UNINSTALLING.md) before deploying this image so you understand the cleanup
-procedure.
+[UNINSTALL.md](UNINSTALL.md) before deploying this image so you understand the uninstall
+procedure. If you have the repo checked out, `rake uninstall` handles it.
 
 ## How it works
 
@@ -95,6 +103,18 @@ The engine:
 - Injects a clock button into the card header and a stylesheet into the layout via an install generator
 - Creates timeline events and system comments when time is logged
 - Supports both adding and removing time (negative entries for audit trail)
+
+### Database
+
+The engine has one migration (`create_time_entries`) which uses `if_not_exists: true` so it is safe
+to re-run. During `docker build`, the install generator copies the migration from the engine into the
+host app's `db/migrate/` using Rails' `ActiveRecord::Migration.copy`. On first container start,
+`db:prepare` runs the migration against the persistent storage volume.
+
+`Migration.copy` normally assigns a new timestamp based on `Time.now`, which would cause each Docker
+rebuild to produce a different migration version number. The install generator uses the `on_copy`
+callback to rename the copied file back to its original version (`20260205000001`), ensuring stable
+migration versions across rebuilds.
 
 ## License
 

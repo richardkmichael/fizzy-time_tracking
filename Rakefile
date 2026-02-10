@@ -67,6 +67,24 @@ task :run, [ :storage ] do |_t, args|
     IMAGE
 end
 
+desc "Remove time tracking data from a Fizzy database (see UNINSTALL.md)"
+task :uninstall, [ :storage ] do |_t, args|
+  storage = args.fetch(:storage, DEFAULT_VOLUME)
+  volume = if storage.start_with?("/", ".")
+    File.expand_path(storage, ENGINE_ROOT)
+  else
+    storage
+  end
+
+  script = File.join(ENGINE_ROOT, "remove_time_tracking.rb")
+  sh "docker", "run", "--rm",
+    "-e", "SECRET_KEY_BASE_DUMMY=1",
+    "-v", "#{volume}:/rails/storage",
+    "-v", "#{script}:/rails/remove_time_tracking.rb",
+    "ghcr.io/basecamp/fizzy:main",
+    "bin/rails", "runner", "remove_time_tracking.rb"
+end
+
 desc "Build the production Docker image (development uses `rake server`)"
 task :build do
   Dir.chdir(ENGINE_ROOT) { sh "docker", "build", "-t", "fizzy-time_tracking", "." }
