@@ -1,5 +1,6 @@
 # check=skip=CopyIgnoredFile
-FROM ghcr.io/basecamp/fizzy:main
+ARG FIZZY_REF=main
+FROM ghcr.io/basecamp/fizzy:${FIZZY_REF}
 
 LABEL org.opencontainers.image.title="fizzy-time_tracking"
 LABEL org.opencontainers.image.description="Fizzy with time tracking: per-card time logging for hours and minutes"

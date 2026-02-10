@@ -87,7 +87,7 @@ end
 
 desc "Build the production Docker image (development uses `rake server`)"
 task :build do
-  Dir.chdir(ENGINE_ROOT) { sh "docker", "build", "-t", "fizzy-time_tracking", "." }
+  Dir.chdir(ENGINE_ROOT) { sh "docker", "build", "--build-arg", "FIZZY_REF=#{FIZZY_REF}", "-t", IMAGE, "." }
 end
 
 desc "Clone and configure Fizzy host app for running engine tests"
