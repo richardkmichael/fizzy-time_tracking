@@ -63,6 +63,11 @@ jobs:
       - name: Build and push Docker image
         if: github.event_name != 'pull_request'
         run: |
+          IMAGE=ghcr.io/${{ github.repository }}:${{ github.ref_name }}
           bundle exec rake build
-          docker tag fizzy-time_tracking ghcr.io/${{ github.repository }}:${{ github.ref_name }}
-          docker push ghcr.io/${{ github.repository }}:${{ github.ref_name }}
+          docker tag fizzy-time_tracking $IMAGE
+          docker push $IMAGE
+          echo "### Docker image pushed" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "docker pull $IMAGE" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
