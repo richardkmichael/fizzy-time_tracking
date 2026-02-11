@@ -96,8 +96,9 @@ task :setup do
   add_engine_to_gemfile
 
   in_fizzy "bundle", "install"
-  in_fizzy "bin/rails", "generate", "fizzy_time_tracking:install"
   in_fizzy "bin/rails", "db:prepare"
+  in_fizzy "bin/rails", "generate", "fizzy_time_tracking:install"
+  in_fizzy "bin/rails", "db:migrate"
 end
 
 # Shell out with a clean Bundler env — we're bootstrapping Fizzy's bundle,
