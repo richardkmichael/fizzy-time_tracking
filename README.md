@@ -47,13 +47,7 @@ rake test
 ```
 
 This runs the engine's test suite (model, controller, integration, and system tests) inside the
-Fizzy host app.
-
-CI also runs the full Fizzy test suite to catch regressions.
-
-```bash
-rake test:fizzy
-```
+Fizzy host app. CI also runs the full Fizzy test suite to catch regressions.
 
 ## Deployment
 
