@@ -1,6 +1,9 @@
 name: Latest
 
 on:
+  push:
+    tags:
+      - latest
   schedule:
     - cron: "20 */4 * * *"
   workflow_dispatch:
@@ -61,6 +64,7 @@ jobs:
 
       - name: Verify latest git tag exists
         id: tag
+        if: github.event_name != 'push'
         run: |
           if git ls-remote --tags https://github.com/${{ github.repository }} latest | grep -q latest; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
@@ -70,7 +74,7 @@ jobs:
           fi
 
       - name: Check cache for previous build
-        if: steps.resolve.outputs.fizzy_image_tag != '' && steps.tag.outputs.exists == 'true' && inputs.force != true && inputs.fizzy_ref == ''
+        if: github.event_name != 'push' && steps.resolve.outputs.fizzy_image_tag != '' && steps.tag.outputs.exists == 'true' && inputs.force != true && inputs.fizzy_ref == ''
         id: cache
         uses: actions/cache/restore@v4
         with:
@@ -85,10 +89,14 @@ jobs:
           CACHE_HIT="${{ steps.cache.outputs.cache-hit }}"
           FORCE="${{ inputs.force }}"
           INPUT_REF="${{ inputs.fizzy_ref }}"
+          EVENT="${{ github.event_name }}"
 
           if [ -z "$FIZZY_IMAGE_TAG" ]; then
             echo "should_build=false" >> "$GITHUB_OUTPUT"
             echo "Skipping: could not resolve Fizzy image tag"
+          elif [ "$EVENT" = "push" ]; then
+            echo "should_build=true" >> "$GITHUB_OUTPUT"
+            echo "Building: latest tag pushed"
           elif [ "$TAG_EXISTS" != "true" ]; then
             echo "should_build=false" >> "$GITHUB_OUTPUT"
             echo "Skipping: no latest git tag"
@@ -104,9 +112,8 @@ jobs:
           fi
 
           echo "### Latest check" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Trigger: \`$EVENT\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- Fizzy image tag: \`$FIZZY_IMAGE_TAG\`" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Latest tag exists: \`$TAG_EXISTS\`" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Cache hit: \`$CACHE_HIT\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- Should build: \`$(grep should_build "$GITHUB_OUTPUT" | cut -d= -f2)\`" >> "$GITHUB_STEP_SUMMARY"
 
   ci:

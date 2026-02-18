@@ -124,7 +124,7 @@ Three workflow files in `.github/workflows/`:
 
 - `ci.yml` — Reusable workflow (`workflow_call`). Runs tests and optionally builds/pushes a Docker image. All test and build logic lives here.
 - `development.yml` — Caller workflow. Triggers on push/PR to `development`. Resolves the latest Fizzy Docker image tag, then calls `ci.yml` with `image_tag: development`.
-- `latest.yml` — Caller workflow. Runs on a 4-hour schedule. Polls GHCR for new Fizzy Docker images, skips if already built (cache-based), then calls `ci.yml` with `engine_ref: latest` and `image_tag: latest`.
+- `latest.yml` — Caller workflow. Triggers on push of the `latest` git tag (always builds) and on a 4-hour schedule (polls GHCR for new Fizzy Docker images, skips if already built). Calls `ci.yml` with `engine_ref: latest` and `engine_image_tag: latest`.
 
 Two environment variables control Fizzy references:
 
