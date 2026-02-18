@@ -91,8 +91,10 @@ task :run, [ :storage ] do |_t, args|
     -v #{volume}:/rails/storage \
     #{IMAGE}`.chomp
   puts "Container started: #{container_id}"
+  puts "URL:   http://localhost:8080"
   puts "Logs:  docker logs -f #{container_id}"
   puts "Stop:  docker stop #{container_id}"
+  puts "Sign in:  docker exec #{container_id} bin/rails runner 'puts Identity.find_or_create_by!(email_address: ARGV[0]).magic_links.create!.code' YOUR@EMAIL.COM"
 end
 
 desc "Remove time tracking data from a Fizzy database (see UNINSTALL.md)"
