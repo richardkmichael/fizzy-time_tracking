@@ -5,9 +5,9 @@
 # APP_RAKEFILE + rails/tasks/engine.rake just works. Here, Fizzy has a
 # separate bundle. We bridge that gap by pointing BUNDLE_GEMFILE at Fizzy's
 # Gemfile before Bundler loads — Fizzy's bundle includes this engine as a
-# path gem, so everything resolves. On first clone (before `rake setup`),
+# path gem, so everything resolves. On first clone (before `rake dev:setup`),
 # Fizzy isn't present yet; we fall back to the engine's own Gemfile so that
-# rake setup can bootstrap.
+# rake dev:setup can bootstrap.
 
 ENGINE_ROOT = __dir__
 FIZZY_PATH  = ENV.fetch("FIZZY_PATH") { File.expand_path("test/fizzy", ENGINE_ROOT) }
@@ -62,39 +62,59 @@ if File.directory?(FIZZY_PATH)
   end
 else
   task :test do
-    abort "Fizzy host app not found at #{FIZZY_PATH}. Run `rake setup` first."
+    abort "Fizzy host app not found at #{FIZZY_PATH}. Run `rake dev:setup` first."
   end
 end
 
-desc "Start the development server"
-task :server do
-  in_fizzy "bin/dev"
+namespace :dev do
+  desc "Start the development server"
+  task :server do
+    in_fizzy "bin/dev"
+  end
+
+  desc "Clone and configure Fizzy host app for running engine tests"
+  task :setup do
+    clone_fizzy
+    add_engine_to_gemfile
+
+    in_fizzy "bundle", "install"
+    in_fizzy "bin/rails", "db:prepare"
+    in_fizzy "bin/rails", "generate", "fizzy_time_tracking:install"
+    in_fizzy "bin/rails", "db:migrate"
+  end
 end
 
 IMAGE = "fizzy-time_tracking"
 DEFAULT_VOLUME = "#{IMAGE}-data"
 
-desc "Run the production Docker image (rake run[./data] or rake run[my-volume])"
-task :run, [ :storage ] do |_t, args|
-  storage = args.fetch(:storage, DEFAULT_VOLUME)
-  volume = if storage.start_with?("/", ".")
-    File.expand_path(storage, ENGINE_ROOT)
-  else
-    storage
+namespace :prod do
+  desc "Build the Docker image (development uses `rake dev:server`)"
+  task :build do
+    Dir.chdir(ENGINE_ROOT) { sh "docker", "build", "--build-arg", "FIZZY_IMAGE_TAG=#{fizzy_image_tag}", "-t", IMAGE, "." }
   end
 
-  secret_key = `docker run --rm #{IMAGE} bin/rails secret`.chomp
-  container_id = `docker run -d \
-    -p 8080:80 \
-    -e SECRET_KEY_BASE=#{secret_key} \
-    -e DISABLE_SSL=true \
-    -v #{volume}:/rails/storage \
-    #{IMAGE}`.chomp
-  puts "Container started: #{container_id}"
-  puts "URL:   http://localhost:8080"
-  puts "Logs:  docker logs -f #{container_id}"
-  puts "Stop:  docker stop #{container_id}"
-  puts "Sign in:  docker exec #{container_id} bin/rails runner 'puts Identity.find_or_create_by!(email_address: ARGV[0]).magic_links.create!.code' YOUR@EMAIL.COM"
+  desc "Run the Docker image (rake prod:run[./data] or rake prod:run[my-volume])"
+  task :run, [ :storage ] do |_t, args|
+    storage = args.fetch(:storage, DEFAULT_VOLUME)
+    volume = if storage.start_with?("/", ".")
+      File.expand_path(storage, ENGINE_ROOT)
+    else
+      storage
+    end
+
+    secret_key = `docker run --rm #{IMAGE} bin/rails secret`.chomp
+    container_id = `docker run -d \
+      -p 8080:80 \
+      -e SECRET_KEY_BASE=#{secret_key} \
+      -e DISABLE_SSL=true \
+      -v #{volume}:/rails/storage \
+      #{IMAGE}`.chomp
+    puts "Container started: #{container_id}"
+    puts "URL:   http://localhost:8080"
+    puts "Logs:  docker logs -f #{container_id}"
+    puts "Stop:  docker stop #{container_id}"
+    puts "Sign in:  docker exec #{container_id} bin/rails runner 'puts Identity.find_or_create_by!(email_address: ARGV[0]).magic_links.create!.code' YOUR@EMAIL.COM"
+  end
 end
 
 desc "Remove time tracking data from a Fizzy database (see UNINSTALL.md)"
@@ -113,22 +133,6 @@ task :uninstall, [ :storage ] do |_t, args|
     "-v", "#{script}:/rails/remove_time_tracking.rb",
     "ghcr.io/basecamp/fizzy:main",
     "bin/rails", "runner", "remove_time_tracking.rb"
-end
-
-desc "Build the production Docker image (development uses `rake server`)"
-task :build do
-  Dir.chdir(ENGINE_ROOT) { sh "docker", "build", "--build-arg", "FIZZY_IMAGE_TAG=#{fizzy_image_tag}", "-t", IMAGE, "." }
-end
-
-desc "Clone and configure Fizzy host app for running engine tests"
-task :setup do
-  clone_fizzy
-  add_engine_to_gemfile
-
-  in_fizzy "bundle", "install"
-  in_fizzy "bin/rails", "db:prepare"
-  in_fizzy "bin/rails", "generate", "fizzy_time_tracking:install"
-  in_fizzy "bin/rails", "db:migrate"
 end
 
 # Shell out with a clean Bundler env — we're bootstrapping Fizzy's bundle,
