@@ -84,12 +84,15 @@ task :run, [ :storage ] do |_t, args|
   end
 
   secret_key = `docker run --rm #{IMAGE} bin/rails secret`.chomp
-  sh "docker", "run",
-    "-p", "8080:80",
-    "-e", "SECRET_KEY_BASE=#{secret_key}",
-    "-e", "DISABLE_SSL=true",
-    "-v", "#{volume}:/rails/storage",
-    IMAGE
+  container_id = `docker run -d \
+    -p 8080:80 \
+    -e SECRET_KEY_BASE=#{secret_key} \
+    -e DISABLE_SSL=true \
+    -v #{volume}:/rails/storage \
+    #{IMAGE}`.chomp
+  puts "Container started: #{container_id}"
+  puts "Logs:  docker logs -f #{container_id}"
+  puts "Stop:  docker stop #{container_id}"
 end
 
 desc "Remove time tracking data from a Fizzy database (see UNINSTALL.md)"
