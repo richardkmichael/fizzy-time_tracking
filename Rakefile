@@ -11,7 +11,32 @@
 
 ENGINE_ROOT = __dir__
 FIZZY_PATH  = ENV.fetch("FIZZY_PATH") { File.expand_path("test/fizzy", ENGINE_ROOT) }
-FIZZY_REF   = ENV.fetch("FIZZY_REF", "main")
+def fizzy_image_tag
+  @fizzy_image_tag ||= ENV.fetch("FIZZY_IMAGE_TAG") { detect_latest_fizzy_image_tag }
+end
+
+def fizzy_ref
+  @fizzy_ref ||= ENV.fetch("FIZZY_REF") do
+    if (sha = fizzy_image_tag[/\Asha-([a-f0-9]+)\z/, 1])
+      "fizzy@#{sha}"
+    else
+      fizzy_image_tag
+    end
+  end
+end
+
+def detect_latest_fizzy_image_tag
+  @detected_tag ||= begin
+    tag = `gh api /orgs/basecamp/packages/container/fizzy/versions \
+      --jq '[.[] | select(.metadata.container.tags | any(. == "main"))]
+             | .[0].metadata.container.tags
+             | map(select(startswith("sha-") and test("^sha-[a-f0-9]{7}$")))
+             | .[0]' 2>/dev/null`.strip
+    (tag.empty? || tag == "null") ? "main" : tag
+  rescue
+    "main"
+  end
+end
 
 fizzy_gemfile = File.join(FIZZY_PATH, "Gemfile")
 ENV["BUNDLE_GEMFILE"] = fizzy_gemfile if File.exist?(fizzy_gemfile)
@@ -87,7 +112,7 @@ end
 
 desc "Build the production Docker image (development uses `rake server`)"
 task :build do
-  Dir.chdir(ENGINE_ROOT) { sh "docker", "build", "--build-arg", "FIZZY_REF=#{FIZZY_REF}", "-t", IMAGE, "." }
+  Dir.chdir(ENGINE_ROOT) { sh "docker", "build", "--build-arg", "FIZZY_IMAGE_TAG=#{fizzy_image_tag}", "-t", IMAGE, "." }
 end
 
 desc "Clone and configure Fizzy host app for running engine tests"
@@ -114,7 +139,7 @@ def clone_fizzy
     puts "Fizzy already present at #{FIZZY_PATH}, skipping clone."
   else
     sh "git", "clone", "https://github.com/basecamp/fizzy.git", FIZZY_PATH,
-      "--branch", FIZZY_REF, "--single-branch", "--depth", "1"
+      "--branch", fizzy_ref, "--single-branch", "--depth", "1"
   end
 end
 

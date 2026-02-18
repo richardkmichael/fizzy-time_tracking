@@ -118,6 +118,25 @@ When adding a model that generates events (like TimeEntry), you need:
 - Requires cloning the full repo (not just downloading the Dockerfile)
 - Image tag uses underscore: `fizzy-time_tracking`
 
+## CI Architecture
+
+Three workflow files in `.github/workflows/`:
+
+- `ci.yml` — Reusable workflow (`workflow_call`). Runs tests and optionally builds/pushes a Docker image. All test and build logic lives here.
+- `development.yml` — Caller workflow. Triggers on push/PR to `development`. Resolves the latest Fizzy Docker image tag, then calls `ci.yml` with `image_tag: development`.
+- `latest.yml` — Caller workflow. Runs on a 4-hour schedule. Polls GHCR for new Fizzy Docker images, skips if already built (cache-based), then calls `ci.yml` with `engine_ref: latest` and `image_tag: latest`.
+
+Two environment variables control Fizzy references:
+
+- `FIZZY_REF` — Git ref for `rake setup` (clones Fizzy for testing). Examples: `main`, `fizzy@37d7f5c`
+- `FIZZY_IMAGE_TAG` — Docker tag for the `FROM` line in the Dockerfile. Examples: `main`, `sha-37d7f5c`
+
+Tag format mapping: Fizzy release tags (`fizzy@37d7f5c`) correspond to Docker image tags (`sha-37d7f5c`). Not every Fizzy release gets a Docker image — the workflows check GHCR for `sha-*` tags, not GitHub releases.
+
+The `latest` git tag promotes engine code to the stable image. Push with: `git tag -f latest HEAD && git push origin latest --force`
+
+The `latest.yml` skip logic uses GitHub Actions cache (`latest-fizzy-built-{tag}`) to avoid rebuilding when the Fizzy base image hasn't changed. Cache expires after 7 days (GitHub default).
+
 ## Rakefile
 
 - Switches `BUNDLE_GEMFILE` to Fizzy's Gemfile before `bundler/setup` for in-process test execution

@@ -96,6 +96,6 @@ class TimeTrackingTest < ApplicationSystemTestCase
   private
     def sign_in_as(user)
       visit session_transfer_url(user.identity.transfer_id, script_name: nil)
-      assert_selector "h1"
+      assert_selector "h1", wait: 5
     end
 end

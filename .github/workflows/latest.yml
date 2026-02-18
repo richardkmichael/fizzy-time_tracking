@@ -1,0 +1,135 @@
+name: Latest
+
+on:
+  schedule:
+    - cron: "20 */4 * * *"
+  workflow_dispatch:
+    inputs:
+      fizzy_ref:
+        description: "Fizzy git ref (overrides auto-detection)"
+        default: ""
+      force:
+        description: "Force rebuild even if already built against this Fizzy image"
+        type: boolean
+        default: false
+
+concurrency:
+  group: latest
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      should_build: ${{ steps.decide.outputs.should_build }}
+      fizzy_ref: ${{ steps.resolve.outputs.fizzy_ref }}
+      fizzy_image_tag: ${{ steps.resolve.outputs.fizzy_image_tag }}
+    steps:
+      - name: Resolve Fizzy image tag
+        id: resolve
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          INPUT_REF="${{ inputs.fizzy_ref }}"
+
+          if [ -n "$INPUT_REF" ]; then
+            if [[ "$INPUT_REF" == fizzy@* ]]; then
+              SHA="${INPUT_REF#fizzy@}"
+              echo "fizzy_ref=$INPUT_REF" >> "$GITHUB_OUTPUT"
+              echo "fizzy_image_tag=sha-$SHA" >> "$GITHUB_OUTPUT"
+            else
+              echo "fizzy_ref=$INPUT_REF" >> "$GITHUB_OUTPUT"
+              echo "fizzy_image_tag=$INPUT_REF" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            SHA_TAG=$(gh api /orgs/basecamp/packages/container/fizzy/versions \
+              --jq '[.[] | select(.metadata.container.tags | any(. == "main"))]
+                    | .[0].metadata.container.tags
+                    | map(select(startswith("sha-") and test("^sha-[a-f0-9]{7}$")))
+                    | .[0]')
+
+            if [ -n "$SHA_TAG" ] && [ "$SHA_TAG" != "null" ]; then
+              SHA="${SHA_TAG#sha-}"
+              echo "fizzy_ref=fizzy@$SHA" >> "$GITHUB_OUTPUT"
+              echo "fizzy_image_tag=$SHA_TAG" >> "$GITHUB_OUTPUT"
+            else
+              echo "::warning::No sha- tag found on Fizzy main image"
+              echo "fizzy_ref=" >> "$GITHUB_OUTPUT"
+              echo "fizzy_image_tag=" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+
+      - name: Verify latest git tag exists
+        id: tag
+        run: |
+          if git ls-remote --tags https://github.com/${{ github.repository }} latest | grep -q latest; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::No 'latest' git tag found — push one with: git tag -f latest HEAD && git push origin latest --force"
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check cache for previous build
+        if: steps.resolve.outputs.fizzy_image_tag != '' && steps.tag.outputs.exists == 'true' && inputs.force != true && inputs.fizzy_ref == ''
+        id: cache
+        uses: actions/cache/restore@v4
+        with:
+          path: .latest-fizzy-built
+          key: latest-fizzy-built-${{ steps.resolve.outputs.fizzy_image_tag }}
+
+      - name: Decide whether to build
+        id: decide
+        run: |
+          FIZZY_IMAGE_TAG="${{ steps.resolve.outputs.fizzy_image_tag }}"
+          TAG_EXISTS="${{ steps.tag.outputs.exists }}"
+          CACHE_HIT="${{ steps.cache.outputs.cache-hit }}"
+          FORCE="${{ inputs.force }}"
+          INPUT_REF="${{ inputs.fizzy_ref }}"
+
+          if [ -z "$FIZZY_IMAGE_TAG" ]; then
+            echo "should_build=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping: could not resolve Fizzy image tag"
+          elif [ "$TAG_EXISTS" != "true" ]; then
+            echo "should_build=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping: no latest git tag"
+          elif [ "$FORCE" = "true" ] || [ -n "$INPUT_REF" ]; then
+            echo "should_build=true" >> "$GITHUB_OUTPUT"
+            echo "Building: force=$FORCE, explicit ref=$INPUT_REF"
+          elif [ "$CACHE_HIT" = "true" ]; then
+            echo "should_build=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping: already built against $FIZZY_IMAGE_TAG"
+          else
+            echo "should_build=true" >> "$GITHUB_OUTPUT"
+            echo "Building: new Fizzy image $FIZZY_IMAGE_TAG"
+          fi
+
+          echo "### Latest check" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Fizzy image tag: \`$FIZZY_IMAGE_TAG\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Latest tag exists: \`$TAG_EXISTS\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Cache hit: \`$CACHE_HIT\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Should build: \`$(grep should_build "$GITHUB_OUTPUT" | cut -d= -f2)\`" >> "$GITHUB_STEP_SUMMARY"
+
+  ci:
+    needs: check
+    if: needs.check.outputs.should_build == 'true'
+    uses: ./.github/workflows/ci.yml
+    with:
+      engine_ref: latest
+      fizzy_ref: ${{ needs.check.outputs.fizzy_ref }}
+      fizzy_image_tag: ${{ needs.check.outputs.fizzy_image_tag }}
+      engine_image_tag: latest
+      push_image: true
+    secrets: inherit
+
+  record:
+    needs: [check, ci]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Record Fizzy image tag in cache
+        run: |
+          mkdir -p .latest-fizzy-built
+          echo "${{ needs.check.outputs.fizzy_image_tag }}" > .latest-fizzy-built/tag
+      - uses: actions/cache/save@v4
+        with:
+          path: .latest-fizzy-built
+          key: latest-fizzy-built-${{ needs.check.outputs.fizzy_image_tag }}

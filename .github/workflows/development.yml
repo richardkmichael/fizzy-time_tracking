@@ -1,0 +1,74 @@
+name: Development
+
+on:
+  push:
+    branches: [development]
+  pull_request:
+    branches: [development]
+  workflow_dispatch:
+    inputs:
+      fizzy_ref:
+        description: "Fizzy git ref (e.g., main for unreleased Fizzy)"
+        default: ""
+
+concurrency:
+  group: development-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    outputs:
+      fizzy_ref: ${{ steps.resolve.outputs.fizzy_ref }}
+      fizzy_image_tag: ${{ steps.resolve.outputs.fizzy_image_tag }}
+    steps:
+      - name: Resolve Fizzy ref and image tag
+        id: resolve
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          INPUT_REF="${{ inputs.fizzy_ref }}"
+
+          if [ -n "$INPUT_REF" ]; then
+            # Explicit ref provided — derive the image tag
+            if [[ "$INPUT_REF" == fizzy@* ]]; then
+              SHA="${INPUT_REF#fizzy@}"
+              echo "fizzy_ref=$INPUT_REF" >> "$GITHUB_OUTPUT"
+              echo "fizzy_image_tag=sha-$SHA" >> "$GITHUB_OUTPUT"
+            else
+              # A branch name like "main"
+              echo "fizzy_ref=$INPUT_REF" >> "$GITHUB_OUTPUT"
+              echo "fizzy_image_tag=$INPUT_REF" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            # Default: fetch latest Fizzy Docker image tag from GHCR
+            SHA_TAG=$(gh api /orgs/basecamp/packages/container/fizzy/versions \
+              --jq '[.[] | select(.metadata.container.tags | any(. == "main"))]
+                    | .[0].metadata.container.tags
+                    | map(select(startswith("sha-") and test("^sha-[a-f0-9]{7}$")))
+                    | .[0]')
+
+            if [ -n "$SHA_TAG" ] && [ "$SHA_TAG" != "null" ]; then
+              SHA="${SHA_TAG#sha-}"
+              echo "fizzy_ref=fizzy@$SHA" >> "$GITHUB_OUTPUT"
+              echo "fizzy_image_tag=$SHA_TAG" >> "$GITHUB_OUTPUT"
+            else
+              # Fallback to main if no sha- tag found
+              echo "fizzy_ref=main" >> "$GITHUB_OUTPUT"
+              echo "fizzy_image_tag=main" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+
+          echo "### Fizzy resolution" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Git ref: \`$(grep fizzy_ref "$GITHUB_OUTPUT" | head -1 | cut -d= -f2)\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Image tag: \`$(grep fizzy_image_tag "$GITHUB_OUTPUT" | head -1 | cut -d= -f2)\`" >> "$GITHUB_STEP_SUMMARY"
+
+  ci:
+    needs: resolve
+    uses: ./.github/workflows/ci.yml
+    with:
+      fizzy_ref: ${{ needs.resolve.outputs.fizzy_ref }}
+      fizzy_image_tag: ${{ needs.resolve.outputs.fizzy_image_tag }}
+      engine_image_tag: development
+      push_image: ${{ github.event_name != 'pull_request' }}
+    secrets: inherit

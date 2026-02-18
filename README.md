@@ -51,18 +51,36 @@ Fizzy host app. CI also runs the full Fizzy test suite to catch regressions.
 
 ## Deployment
 
-Build the production Docker image, which layers the engine onto `ghcr.io/basecamp/fizzy:main`:
+CI publishes two Docker images to GHCR, both layered on Fizzy's latest stable Docker image:
+
+| Image | Tag | Built from | Trigger |
+|-------|-----|------------|---------|
+| `ghcr.io/richardkmichael/fizzy-time_tracking:development` | `development` | `development` branch tip | Push to `development` |
+| `ghcr.io/richardkmichael/fizzy-time_tracking:latest` | `latest` | `latest` git tag | Every 4h when Fizzy publishes a new Docker image |
+
+### Promoting code to latest
+
+Tag the commit you want to release and push:
+
+```bash
+git tag -f latest HEAD
+git push origin latest --force
+```
+
+The `latest.yml` workflow will pick it up on its next scheduled run (or trigger it manually).
+
+### Local builds
+
+Build the production Docker image locally (defaults to `ghcr.io/basecamp/fizzy:main` as the base):
 
 ```bash
 rake build
 ```
 
-Docker uses the locally cached base image if one exists. To pick up upstream Fizzy changes, pull the
-latest image first:
+To build against a specific Fizzy Docker image:
 
 ```bash
-docker pull ghcr.io/basecamp/fizzy:main
-rake build
+FIZZY_IMAGE_TAG=sha-37d7f5c rake build
 ```
 
 To test the image locally:
@@ -77,15 +95,22 @@ This uses a Docker named volume for SQLite storage. Pass a path to bind mount a 
 rake run[./data]
 ```
 
-To push to a container registry, tag and push:
-
-```bash
-docker tag fizzy-time_tracking ghcr.io/you/fizzy-time_tracking
-docker push ghcr.io/you/fizzy-time_tracking
-```
-
 The image is a drop-in replacement for `ghcr.io/basecamp/fizzy:main` with time tracking enabled.
 Deploy it the same way you [deploy Fizzy](https://github.com/basecamp/fizzy/blob/main/docs/docker-deployment.md).
+
+### Manual CI triggers
+
+Trigger a development build against unreleased Fizzy (e.g., `main` branch):
+
+```bash
+gh workflow run development.yml -f fizzy_ref=main
+```
+
+Force a latest rebuild:
+
+```bash
+gh workflow run latest.yml -f force=true
+```
 
 ## Reverting to upstream Fizzy
 
