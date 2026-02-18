@@ -69,6 +69,5 @@ jobs:
     with:
       fizzy_ref: ${{ needs.resolve.outputs.fizzy_ref }}
       fizzy_image_tag: ${{ needs.resolve.outputs.fizzy_image_tag }}
-      engine_image_tag: development
-      push_image: ${{ github.event_name != 'pull_request' }}
+      push_image: false
     secrets: inherit

@@ -15,9 +15,8 @@ on:
         type: string
         required: true
       engine_image_tag:
-        description: "Tag for the output Docker image (e.g., development, latest)"
+        description: "Tag for the output Docker image — required when push_image is true (latest.yml passes 'latest')"
         type: string
-        required: true
       push_image:
         description: "Whether to push the built image to GHCR"
         type: boolean
