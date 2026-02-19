@@ -113,6 +113,26 @@ namespace :prod do
   end
 end
 
+# Signals a release by force-pushing the `latest` git tag to HEAD, which triggers
+# the Latest CI workflow to build multi-platform (amd64 + arm64) images and push
+# them to GHCR.
+#
+# Caveat: the git tag moves before CI confirms the build succeeded. If the build
+# fails, `latest` points to broken code until a fix is pushed and released.
+#
+# Future improvement: build on every development push (pushing a :development image
+# to GHCR), and make `rake release` retag :development -> :latest in GHCR rather
+# than rebuilding. The git tag would only move after a confirmed successful build.
+# The tricky part is the scheduled Fizzy-base-update path in latest.yml, which
+# needs a full rebuild (not a retag) when Fizzy releases a new version. That
+# interaction — our code updates vs. Fizzy base updates as separate release triggers
+# — needs careful design before implementing.
+desc "Release: push the `latest` git tag to HEAD, triggering CI to build and push the GHCR image"
+task :release do
+  sh "git", "tag", "-f", "latest", "HEAD"
+  sh "git", "push", "origin", "latest", "--force"
+end
+
 desc "Remove time tracking data from a Fizzy database (see UNINSTALL.md)"
 task :uninstall, [ :storage ] do |_t, args|
   storage = args.fetch(:storage, DEFAULT_VOLUME)
