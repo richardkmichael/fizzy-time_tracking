@@ -59,9 +59,10 @@ CI publishes one Docker image to GHCR:
 |-----|--------|------------------|---------|
 | `latest` | `latest` git tag | Latest Fizzy release | Push of `latest` tag; or every 4h if a new Fizzy release is found |
 
-The `latest` image is the stable deployable build. It tracks Fizzy releases: whenever Fizzy
-publishes a new release, CI automatically detects it, runs tests, and rebuilds the image on the
-new base. If tests fail, the existing image is left untouched.
+The `latest` image is the stable deployable build. It is a multi-platform image (linux/amd64 and
+linux/arm64), built on native CI runners. It tracks Fizzy releases: whenever Fizzy publishes a
+new release, CI automatically detects it, runs tests, and rebuilds the image on the new base. If
+tests fail, the existing image is left untouched.
 
 Pushes to `development` run tests only — no image is built or published.
 
@@ -80,13 +81,13 @@ deployed) until the incompatibility is fixed on `development` and a new `latest`
 When you have changes on `development` that you want to ship:
 
 ```bash
-git tag -f latest HEAD
-git push origin latest --force
+rake release
 ```
 
-This immediately triggers `latest.yml`, which runs tests against the current Fizzy release and
-pushes the image on success. The `latest` tag always points to the engine code in the
-`ghcr.io/richardkmichael/fizzy-time_tracking:latest` image.
+This force-pushes the `latest` git tag to HEAD, immediately triggering `latest.yml`, which runs
+tests against the current Fizzy release and pushes a multi-platform image on success. The `latest`
+tag always points to the engine code in the `ghcr.io/richardkmichael/fizzy-time_tracking:latest`
+image.
 
 ### Local builds
 
