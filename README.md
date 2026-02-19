@@ -14,19 +14,19 @@ and prepares the database:
 ```bash
 git clone https://github.com/richardkmichael/fizzy-time_tracking.git
 cd fizzy-time_tracking
-rake setup
+rake dev:setup
 ```
 
-You can point at a specific Fizzy branch or SHA:
+You can point at a specific Fizzy branch or release tag:
 
 ```bash
-FIZZY_REF=stable rake setup
+FIZZY_REF=fizzy@37d7f5c rake dev:setup
 ```
 
 Or use an existing Fizzy checkout instead of cloning:
 
 ```bash
-FIZZY_PATH=/path/to/fizzy rake setup
+FIZZY_PATH=/path/to/fizzy rake dev:setup
 ```
 
 ## Development
@@ -34,7 +34,7 @@ FIZZY_PATH=/path/to/fizzy rake setup
 After setup, start the Fizzy dev server with the engine loaded:
 
 ```bash
-rake server
+rake dev:server
 ```
 
 Changes to engine files (models, views, controllers, CSS) are picked up automatically — no need to
@@ -51,48 +51,67 @@ Fizzy host app. CI also runs the full Fizzy test suite to catch regressions.
 
 ## Deployment
 
-CI publishes two Docker images to GHCR, both layered on Fizzy's latest stable Docker image:
+### Docker images
 
-| Image | Tag | Built from | Trigger |
-|-------|-----|------------|---------|
-| `ghcr.io/richardkmichael/fizzy-time_tracking:development` | `development` | `development` branch tip | Push to `development` |
-| `ghcr.io/richardkmichael/fizzy-time_tracking:latest` | `latest` | `latest` git tag | Every 4h when Fizzy publishes a new Docker image |
+CI publishes one Docker image to GHCR:
 
-### Promoting code to latest
+| Tag | Source | Base Fizzy image | Trigger |
+|-----|--------|------------------|---------|
+| `latest` | `latest` git tag | Latest Fizzy release | Push of `latest` tag; or every 4h if a new Fizzy release is found |
 
-Tag the commit you want to release and push:
+The `latest` image is the stable deployable build. It tracks Fizzy releases: whenever Fizzy
+publishes a new release, CI automatically detects it, runs tests, and rebuilds the image on the
+new base. If tests fail, the existing image is left untouched.
+
+Pushes to `development` run tests only — no image is built or published.
+
+### Keeping up to date with Fizzy
+
+The `latest.yml` workflow runs every 4 hours. It checks the latest
+[Fizzy release](https://github.com/basecamp/fizzy/releases) and compares it against what was
+last built (cached in GitHub Actions). If a new release is found, it runs the full test suite
+against it and, on success, pushes a new `ghcr.io/richardkmichael/fizzy-time_tracking:latest`.
+
+If our tests break on a new Fizzy release, the build fails (and the existing image stays
+deployed) until the incompatibility is fixed on `development` and a new `latest` tag is pushed.
+
+### Promoting engine changes to latest
+
+When you have changes on `development` that you want to ship:
 
 ```bash
 git tag -f latest HEAD
 git push origin latest --force
 ```
 
-The `latest.yml` workflow will pick it up on its next scheduled run (or trigger it manually).
+This immediately triggers `latest.yml`, which runs tests against the current Fizzy release and
+pushes the image on success. The `latest` tag always points to the engine code in the
+`ghcr.io/richardkmichael/fizzy-time_tracking:latest` image.
 
 ### Local builds
 
 Build the production Docker image locally (defaults to `ghcr.io/basecamp/fizzy:main` as the base):
 
 ```bash
-rake build
+rake prod:build
 ```
 
-To build against a specific Fizzy Docker image:
+To build against a specific Fizzy release:
 
 ```bash
-FIZZY_IMAGE_TAG=sha-37d7f5c rake build
+FIZZY_IMAGE_TAG=sha-37d7f5c rake prod:build
 ```
 
-To test the image locally:
+To run the image locally:
 
 ```bash
-rake run
+rake prod:run
 ```
 
 This uses a Docker named volume for SQLite storage. Pass a path to bind mount a directory instead:
 
 ```bash
-rake run[./data]
+rake prod:run[./data]
 ```
 
 The image is a drop-in replacement for `ghcr.io/basecamp/fizzy:main` with time tracking enabled.
@@ -100,16 +119,22 @@ Deploy it the same way you [deploy Fizzy](https://github.com/basecamp/fizzy/blob
 
 ### Manual CI triggers
 
-Trigger a development build against unreleased Fizzy (e.g., `main` branch):
+Trigger a `latest` rebuild immediately (without waiting for the next scheduled run):
 
 ```bash
-gh workflow run development.yml -f fizzy_ref=main
+gh workflow run latest.yml
 ```
 
-Force a latest rebuild:
+Force a rebuild even if the Fizzy base image hasn't changed:
 
 ```bash
 gh workflow run latest.yml -f force=true
+```
+
+Run tests against a specific Fizzy release instead of `main`:
+
+```bash
+gh workflow run development.yml -f fizzy_ref=fizzy@37d7f5c
 ```
 
 ## Reverting to upstream Fizzy
