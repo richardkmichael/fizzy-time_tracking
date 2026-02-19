@@ -6,14 +6,14 @@ Standalone Rails engine that adds time tracking to Fizzy.
 
 - `app/` — Engine code (models, views, controllers, assets)
 - `lib/` — Engine boot, generators, test helpers
-- `test/fizzy/` — Host app (full Fizzy clone, set up by `rake setup`)
+- `test/fizzy/` — Host app (full Fizzy clone, set up by `rake dev:setup`)
 - `test/fizzy/app/` — Host app files; install generator injects into these
 
 ## Development
 
 ```bash
-rake setup                  # Clone Fizzy host app, install engine, prepare DB
-cd test/fizzy && bin/dev    # Start dev server (localhost:3006)
+rake dev:setup              # Clone Fizzy host app, install engine, prepare DB
+rake dev:server             # Start dev server (localhost:3006)
 ```
 
 Dev URL: http://fizzy.localhost:3006
@@ -113,7 +113,6 @@ When adding a model that generates events (like TimeEntry), you need:
 
 - Layers on Fizzy's published image (`ghcr.io/basecamp/fizzy:main`)
 - `BUNDLE_DEPLOYMENT=""` temporarily lifts strict deployment mode for `bundle add`
-- `--conservative` flag ensures existing Fizzy dependencies stay at locked versions
 - `db:prepare` in the entrypoint handles engine migrations at boot
 - Requires cloning the full repo (not just downloading the Dockerfile)
 - Image tag uses underscore: `fizzy-time_tracking`
@@ -153,7 +152,7 @@ The `latest.yml` skip logic uses GitHub Actions cache (`latest-fizzy-built-{tag}
 
 ## Style
 
-These files exist after `rake setup` (they live in the Fizzy host app clone):
+These files exist after `rake dev:setup` (they live in the Fizzy host app clone):
 
 @test/fizzy/STYLE.md
 @test/fizzy/AGENTS.md
