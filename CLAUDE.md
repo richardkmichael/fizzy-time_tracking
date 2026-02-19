@@ -123,15 +123,15 @@ When adding a model that generates events (like TimeEntry), you need:
 Three workflow files in `.github/workflows/`:
 
 - `ci.yml` — Reusable workflow (`workflow_call`). Runs tests and optionally builds/pushes a Docker image. All test and build logic lives here.
-- `development.yml` — Caller workflow. Triggers on push/PR to `development`. Resolves the latest Fizzy Docker image tag, then calls `ci.yml` with `image_tag: development`.
-- `latest.yml` — Caller workflow. Triggers on push of the `latest` git tag (always builds) and on a 4-hour schedule (polls GHCR for new Fizzy Docker images, skips if already built). Calls `ci.yml` with `engine_ref: latest` and `engine_image_tag: latest`.
+- `development.yml` — Caller workflow. Triggers on push/PR to `development`. Tests against `fizzy:main` and `git clone --branch main`. Simple; no SHA detection.
+- `latest.yml` — Caller workflow. Triggers on push of the `latest` git tag (always builds) and on a 4-hour schedule (polls Fizzy GitHub Releases for the latest `fizzy@SHA` release, skips if already built). Calls `ci.yml` with `engine_ref: latest` and `engine_image_tag: latest`.
 
 Two environment variables control Fizzy references:
 
-- `FIZZY_REF` — Git ref for `rake setup` (clones Fizzy for testing). Examples: `main`, `fizzy@37d7f5c`
+- `FIZZY_REF` — Git ref for `rake dev:setup` (clones Fizzy for testing). Examples: `main`, `fizzy@37d7f5c`
 - `FIZZY_IMAGE_TAG` — Docker tag for the `FROM` line in the Dockerfile. Examples: `main`, `sha-37d7f5c`
 
-Tag format mapping: Fizzy release tags (`fizzy@37d7f5c`) correspond to Docker image tags (`sha-37d7f5c`). Not every Fizzy release gets a Docker image — the workflows check GHCR for `sha-*` tags, not GitHub releases.
+Tag format mapping: Fizzy release tags (`fizzy@37d7f5c`) correspond to Docker image tags (`sha-37d7f5c`). Fizzy creates Docker `sha-*` tags on every push to main, but `fizzy@SHA` git tags only for releases. Always use GitHub Releases API (not Docker SHA detection) to find a ref that is guaranteed to have a corresponding git tag.
 
 The `latest` git tag promotes engine code to the stable image. Push with: `git tag -f latest HEAD && git push origin latest --force`
 

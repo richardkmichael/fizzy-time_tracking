@@ -17,11 +17,7 @@ end
 
 def fizzy_ref
   @fizzy_ref ||= ENV.fetch("FIZZY_REF") do
-    if (sha = fizzy_image_tag[/\Asha-([a-f0-9]+)\z/, 1])
-      "fizzy@#{sha}"
-    else
-      fizzy_image_tag
-    end
+    fizzy_image_tag.start_with?("sha-") ? "main" : fizzy_image_tag
   end
 end
 

@@ -45,18 +45,15 @@ jobs:
               echo "fizzy_image_tag=$INPUT_REF" >> "$GITHUB_OUTPUT"
             fi
           else
-            SHA_TAG=$(gh api /orgs/basecamp/packages/container/fizzy/versions \
-              --jq '[.[] | select(.metadata.container.tags | any(. == "main"))]
-                    | .[0].metadata.container.tags
-                    | map(select(startswith("sha-") and test("^sha-[a-f0-9]{7}$")))
-                    | .[0]')
+            LATEST_TAG=$(gh api /repos/basecamp/fizzy/releases \
+              --jq 'map(select(.tag_name | startswith("fizzy@"))) | .[0].tag_name')
 
-            if [ -n "$SHA_TAG" ] && [ "$SHA_TAG" != "null" ]; then
-              SHA="${SHA_TAG#sha-}"
-              echo "fizzy_ref=fizzy@$SHA" >> "$GITHUB_OUTPUT"
-              echo "fizzy_image_tag=$SHA_TAG" >> "$GITHUB_OUTPUT"
+            if [ -n "$LATEST_TAG" ] && [ "$LATEST_TAG" != "null" ]; then
+              SHA="${LATEST_TAG#fizzy@}"
+              echo "fizzy_ref=$LATEST_TAG" >> "$GITHUB_OUTPUT"
+              echo "fizzy_image_tag=sha-$SHA" >> "$GITHUB_OUTPUT"
             else
-              echo "::warning::No sha- tag found on Fizzy main image"
+              echo "::warning::No fizzy@ release found in Fizzy releases"
               echo "fizzy_ref=" >> "$GITHUB_OUTPUT"
               echo "fizzy_image_tag=" >> "$GITHUB_OUTPUT"
             fi
