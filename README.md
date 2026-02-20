@@ -91,16 +91,16 @@ image.
 
 ### Local builds
 
-Build the production Docker image locally (defaults to `ghcr.io/basecamp/fizzy:main` as the base):
+To smoke-test the Dockerfile locally (defaults to `ghcr.io/basecamp/fizzy:main` as the base):
 
 ```bash
-rake prod:build
+rake dev:build
 ```
 
 To build against a specific Fizzy release:
 
 ```bash
-FIZZY_IMAGE_TAG=sha-37d7f5c rake prod:build
+FIZZY_IMAGE_TAG=sha-37d7f5c rake dev:build
 ```
 
 To run the image locally:

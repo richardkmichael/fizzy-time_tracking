@@ -80,15 +80,17 @@ namespace :dev do
   end
 end
 
-IMAGE       = "fizzy-time_tracking"
-GHCR_IMAGE  = "ghcr.io/richardkmichael/fizzy-time_tracking:latest"
-DEFAULT_VOLUME = "#{IMAGE}-data"
+GHCR_IMAGE     = "ghcr.io/richardkmichael/fizzy-time_tracking:latest"
+DEFAULT_VOLUME = "fizzy-time_tracking-data"
+
+namespace :dev do
+  desc "Smoke-test the production Dockerfile locally (to run Fizzy, use `rake prod:run` with the GHCR image; for development, use `rake dev:server`)"
+  task :build do
+    Dir.chdir(ENGINE_ROOT) { sh "docker", "build", "--build-arg", "FIZZY_IMAGE_TAG=#{fizzy_image_tag}", "-t", "fizzy-time_tracking", "." }
+  end
+end
 
 namespace :prod do
-  desc "Build the Docker image locally (development uses `rake dev:server`)"
-  task :build do
-    Dir.chdir(ENGINE_ROOT) { sh "docker", "build", "--build-arg", "FIZZY_IMAGE_TAG=#{fizzy_image_tag}", "-t", IMAGE, "." }
-  end
 
   desc "Run the GHCR image (rake prod:run[./data] or rake prod:run[my-volume])"
   task :run, [ :storage ] do |_t, args|
