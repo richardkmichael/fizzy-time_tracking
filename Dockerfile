@@ -14,6 +14,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends git && \
     cd /rails && \
     BUNDLE_DEPLOYMENT="" bundle add fizzy-time_tracking --path /engine && \
     SECRET_KEY_BASE_DUMMY=1 bundle exec rails g fizzy_time_tracking:install && \
+    rm db/schema_sqlite.rb && \
+    SECRET_KEY_BASE_DUMMY=1 bundle exec rails db:migrate db:schema:dump && \
     SECRET_KEY_BASE_DUMMY=1 bundle exec rails assets:precompile && \
     chown -R rails:rails /usr/local/bundle /rails /engine
 
@@ -34,9 +36,9 @@ COPY --chown=rails:rails --from=build /engine /engine
 COPY --chown=rails:rails --from=build /usr/local/bundle /usr/local/bundle
 COPY --chown=rails:rails --from=build /rails/Gemfile /rails/Gemfile.lock /rails/
 
-# Host app files modified by the install generator and asset pipeline
+# Host app files modified by the install generator, schema dump, and asset pipeline
 COPY --chown=rails:rails --from=build /rails/app /rails/app
-COPY --chown=rails:rails --from=build /rails/db/migrate /rails/db/migrate
+COPY --chown=rails:rails --from=build /rails/db /rails/db
 COPY --chown=rails:rails --from=build /rails/public/assets /rails/public/assets
 
 USER rails:rails

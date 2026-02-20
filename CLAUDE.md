@@ -113,7 +113,10 @@ When adding a model that generates events (like TimeEntry), you need:
 
 - Layers on Fizzy's published image (`ghcr.io/basecamp/fizzy:main`)
 - `BUNDLE_DEPLOYMENT=""` temporarily lifts strict deployment mode for `bundle add`
-- `db:prepare` in the entrypoint handles engine migrations at boot
+- Build stage: deletes `schema_sqlite.rb`, then runs `db:migrate db:schema:dump` to regenerate it with `time_entries` included
+- Schema deletion is necessary: Rails 8's `db:migrate` calls `initialize_database` which auto-loads an existing schema file on fresh databases (same effect as `schema:load` + `assume_migrated_upto_version`, skipping our migration)
+- Explicit `db:schema:dump` is required because Fizzy disables `dump_schema_after_migration` in production
+- On fresh container start, `db:prepare` loads the schema (which already has `time_entries`) — migration file stays for upgrading existing databases
 - Requires cloning the full repo (not just downloading the Dockerfile)
 - Image tag uses underscore: `fizzy-time_tracking`
 

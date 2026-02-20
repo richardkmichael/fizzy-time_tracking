@@ -158,14 +158,25 @@ The engine:
 ### Database
 
 The engine has one migration (`create_time_entries`) which uses `if_not_exists: true` so it is safe
-to re-run. During `docker build`, the install generator copies the migration from the engine into the
-host app's `db/migrate/` using Rails' `ActiveRecord::Migration.copy`. On first container start,
-`db:prepare` runs the migration against the persistent storage volume.
+to re-run. During `docker build`:
+
+1. The install generator copies the migration into the host app's `db/migrate/` using
+   `ActiveRecord::Migration.copy`.
+2. `db/schema_sqlite.rb` is deleted, then `db:migrate db:schema:dump` regenerates it including the
+   `time_entries` table definition.
+
+The schema deletion is necessary because Rails 8's `db:migrate` calls `initialize_database`, which
+automatically loads an existing schema file on a fresh database. Since `dump_schema_after_migration`
+is disabled in production, an explicit `db:schema:dump` is also needed.
+
+On first container start, `db:prepare` loads the schema (which already includes `time_entries`) into
+the new database. The migration file is still present for upgrading existing databases that predate
+the engine installation.
 
 `Migration.copy` normally assigns a new timestamp based on `Time.now`, which would cause each Docker
 rebuild to produce a different migration version number. The install generator uses the `on_copy`
-callback to rename the copied file back to its original version (`20260205000001`), ensuring stable
-migration versions across rebuilds.
+callback to rename the copied file back to its original version (`20260205000001`), ensuring the
+uninstall script can reliably find and remove it.
 
 ## License
 
