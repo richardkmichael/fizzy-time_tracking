@@ -47,7 +47,7 @@ jobs:
 
   ci:
     needs: resolve
-    uses: ./.github/workflows/ci.yml
+    uses: ./.github/workflows/test_and_publish.yml
     with:
       fizzy_ref: ${{ needs.resolve.outputs.fizzy_ref }}
       fizzy_image_tag: ${{ needs.resolve.outputs.fizzy_image_tag }}

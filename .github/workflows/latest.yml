@@ -116,7 +116,7 @@ jobs:
   ci:
     needs: check
     if: needs.check.outputs.should_build == 'true'
-    uses: ./.github/workflows/ci.yml
+    uses: ./.github/workflows/test_and_publish.yml
     with:
       engine_ref: latest
       fizzy_ref: ${{ needs.check.outputs.fizzy_ref }}
