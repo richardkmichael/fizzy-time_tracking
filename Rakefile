@@ -102,6 +102,8 @@ namespace :prod do
       storage
     end
 
+    ensure_docker_running
+
     secret_key = `docker run --rm #{GHCR_IMAGE} bin/rails secret`
     raise "Failed to generate secret key" unless $?.success?
     secret_key.chomp!
@@ -168,6 +170,23 @@ def in_fizzy(*cmd)
   Bundler.with_unbundled_env do
     Dir.chdir(FIZZY_PATH) { sh(*cmd) }
   end
+end
+
+def ensure_docker_running
+  return if system("docker info > /dev/null 2>&1")
+
+  puts "Docker is not running — starting Docker Desktop..."
+  system("open", "-a", "Docker")
+
+  print "Waiting for Docker"
+  60.times do
+    break if system("docker info > /dev/null 2>&1")
+    print "."
+    sleep 2
+  end
+  puts
+
+  raise "Docker did not start in time" unless system("docker info > /dev/null 2>&1")
 end
 
 def clone_fizzy
