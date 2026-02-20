@@ -80,8 +80,9 @@ namespace :dev do
   end
 end
 
-GHCR_IMAGE     = "ghcr.io/richardkmichael/fizzy-time_tracking:latest"
-DEFAULT_VOLUME = "fizzy-time_tracking-data"
+GHCR_IMAGE      = "ghcr.io/richardkmichael/fizzy-time_tracking:latest"
+CONTAINER_NAME  = "fizzy"
+DEFAULT_VOLUME  = "fizzy-time_tracking-data"
 
 namespace :dev do
   desc "Test the build with the production Dockerfile"
@@ -106,6 +107,7 @@ namespace :prod do
     secret_key.chomp!
 
     container_id = `docker run -d \
+      --name #{CONTAINER_NAME} \
       -p 8080:80 \
       -e SECRET_KEY_BASE=#{secret_key} \
       -e DISABLE_SSL=true \
@@ -115,10 +117,10 @@ namespace :prod do
     container_id.chomp!
 
     puts "Container started: #{container_id}"
-    puts "URL:   http://localhost:8080"
-    puts "Logs:  docker logs -f #{container_id}"
-    puts "Stop:  docker stop #{container_id}"
-    puts "Sign in:  docker exec #{container_id} bin/rails runner 'puts Identity.find_or_create_by!(email_address: ARGV[0]).magic_links.create!.code' YOUR@EMAIL.COM"
+    puts "URL:      http://localhost:8080"
+    puts "Logs:     docker logs -f #{CONTAINER_NAME}"
+    puts "Stop:     docker stop #{CONTAINER_NAME}"
+    puts "Sign in:  docker exec #{CONTAINER_NAME} bin/rails runner 'puts Identity.find_or_create_by!(email_address: ARGV[0]).magic_links.create!.code' YOUR@EMAIL.COM"
   end
 end
 
