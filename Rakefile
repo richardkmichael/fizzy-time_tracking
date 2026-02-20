@@ -80,16 +80,17 @@ namespace :dev do
   end
 end
 
-IMAGE = "fizzy-time_tracking"
+IMAGE       = "fizzy-time_tracking"
+GHCR_IMAGE  = "ghcr.io/richardkmichael/fizzy-time_tracking:latest"
 DEFAULT_VOLUME = "#{IMAGE}-data"
 
 namespace :prod do
-  desc "Build the Docker image (development uses `rake dev:server`)"
+  desc "Build the Docker image locally (development uses `rake dev:server`)"
   task :build do
     Dir.chdir(ENGINE_ROOT) { sh "docker", "build", "--build-arg", "FIZZY_IMAGE_TAG=#{fizzy_image_tag}", "-t", IMAGE, "." }
   end
 
-  desc "Run the Docker image (rake prod:run[./data] or rake prod:run[my-volume])"
+  desc "Run the GHCR image (rake prod:run[./data] or rake prod:run[my-volume])"
   task :run, [ :storage ] do |_t, args|
     storage = args.fetch(:storage, DEFAULT_VOLUME)
     volume = if storage.start_with?("/", ".")
@@ -98,13 +99,19 @@ namespace :prod do
       storage
     end
 
-    secret_key = `docker run --rm #{IMAGE} bin/rails secret`.chomp
+    secret_key = `docker run --rm #{GHCR_IMAGE} bin/rails secret`
+    raise "Failed to generate secret key" unless $?.success?
+    secret_key.chomp!
+
     container_id = `docker run -d \
       -p 8080:80 \
       -e SECRET_KEY_BASE=#{secret_key} \
       -e DISABLE_SSL=true \
       -v #{volume}:/rails/storage \
-      #{IMAGE}`.chomp
+      #{GHCR_IMAGE}`
+    raise "Failed to start container" unless $?.success?
+    container_id.chomp!
+
     puts "Container started: #{container_id}"
     puts "URL:   http://localhost:8080"
     puts "Logs:  docker logs -f #{container_id}"
