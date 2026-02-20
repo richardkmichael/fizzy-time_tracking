@@ -176,7 +176,7 @@ def ensure_docker_running
   return if system("docker info > /dev/null 2>&1")
 
   puts "Docker is not running — starting Docker Desktop..."
-  system("open", "-a", "Docker")
+  system("docker", "desktop", "start")
 
   print "Waiting for Docker"
   60.times do
