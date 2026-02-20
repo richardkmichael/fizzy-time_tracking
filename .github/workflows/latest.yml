@@ -134,6 +134,7 @@ jobs:
           mkdir -p .latest-fizzy-built
           echo "${{ needs.check.outputs.fizzy_image_tag }}" > .latest-fizzy-built/tag
       - uses: actions/cache/save@v4
+        continue-on-error: true
         with:
           path: .latest-fizzy-built
           key: latest-fizzy-built-${{ needs.check.outputs.fizzy_image_tag }}
