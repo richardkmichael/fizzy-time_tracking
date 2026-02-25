@@ -104,21 +104,32 @@ namespace :prod do
 
     ensure_docker_running
 
-    secret_key = `docker run --rm #{GHCR_IMAGE} bin/rails secret`
-    raise "Failed to generate secret key" unless $?.success?
-    secret_key.chomp!
+    container_state = `docker inspect --format '{{.State.Running}}' #{CONTAINER_NAME} 2>/dev/null`.chomp
+    container_exists = $?.success?
 
-    container_id = `docker run -d \
-      --name #{CONTAINER_NAME} \
-      -p 8080:80 \
-      -e SECRET_KEY_BASE=#{secret_key} \
-      -e DISABLE_SSL=true \
-      -v #{volume}:/rails/storage \
-      #{GHCR_IMAGE}`
-    raise "Failed to start container" unless $?.success?
-    container_id.chomp!
+    if container_exists && container_state == "true"
+      puts "Container #{CONTAINER_NAME} is already running."
+    elsif container_exists
+      sh "docker start #{CONTAINER_NAME}"
+      puts "Restarted stopped container #{CONTAINER_NAME}."
+    else
+      secret_key = `docker run --rm #{GHCR_IMAGE} bin/rails secret`
+      raise "Failed to generate secret key" unless $?.success?
+      secret_key.chomp!
 
-    puts "Container started: #{container_id}"
+      container_id = `docker run -d \
+        --name #{CONTAINER_NAME} \
+        -p 8080:80 \
+        -e SECRET_KEY_BASE=#{secret_key} \
+        -e DISABLE_SSL=true \
+        -v #{volume}:/rails/storage \
+        #{GHCR_IMAGE}`
+      raise "Failed to start container" unless $?.success?
+      container_id.chomp!
+
+      puts "Container started: #{container_id}"
+    end
+
     puts "URL:      http://localhost:8080"
     puts "Logs:     docker logs -f #{CONTAINER_NAME}"
     puts "Stop:     docker stop #{CONTAINER_NAME}"
