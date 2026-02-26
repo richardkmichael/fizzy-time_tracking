@@ -120,13 +120,17 @@ When adding a model that generates events (like TimeEntry), you need:
 - Requires cloning the full repo (not just downloading the Dockerfile)
 - Image tag uses underscore: `fizzy-time_tracking`
 
+## CI Workflows
+
+Run `actionlint .github/workflows/*.yml` before committing any workflow changes.
+
 ## CI Architecture
 
 Three workflow files in `.github/workflows/`:
 
 - `ci.yml` — Reusable workflow (`workflow_call`). Three jobs: `test` (AMD64, always), `build` (matrix: `ubuntu-latest` + `ubuntu-24.04-arm`, native AMD64 and ARM64, only when `push_image: true`), `manifest` (merges arch-suffixed images into a single multi-arch tag, only when `push_image: true`).
 - `development.yml` — Caller workflow. Triggers on push/PR to `development`. Tests only (`push_image: false`). Tests against `fizzy:main` and `git clone --branch main`. Simple; no SHA detection.
-- `latest.yml` — Caller workflow. Triggers on push of the `latest` git tag (always builds) and on a 4-hour schedule (polls Fizzy GitHub Releases for the latest `fizzy@SHA` release, skips if already built). Calls `ci.yml` with `engine_ref: latest`, `engine_image_tag: latest`, and `push_image: true`.
+- `release.yml` — Caller workflow. Triggers on push of the `latest` git tag (always builds) and on a 4-hour schedule (polls Fizzy GitHub Releases for the latest `fizzy@SHA` release, skips if already built). Calls `ci.yml` with `engine_ref: latest`, `engine_image_tag: latest`, and `push_image: true`.
 
 Two environment variables control Fizzy references:
 
@@ -137,7 +141,7 @@ Tag format mapping: Fizzy release tags (`fizzy@37d7f5c`) correspond to Docker im
 
 The `latest` git tag promotes engine code to the stable image. Use `rake release` (which runs `git tag -f latest HEAD && git push origin latest --force`).
 
-The `latest.yml` skip logic uses GitHub Actions cache (`latest-fizzy-built-{tag}`) to avoid rebuilding when the Fizzy base image hasn't changed. Cache expires after 7 days (GitHub default).
+The `release.yml` skip logic uses GitHub Actions cache (`latest-fizzy-built-{tag}`) to avoid rebuilding when the Fizzy base image hasn't changed. Cache expires after 7 days (GitHub default).
 
 ## Rakefile
 

@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       fizzy_ref:
-        description: "Fizzy git ref (e.g., main for unreleased Fizzy)"
+        description: "Fizzy git ref override (e.g., main to test against unreleased Fizzy)"
         default: ""
 
 concurrency:
@@ -17,6 +17,7 @@ concurrency:
 
 jobs:
   resolve:
+    name: Resolve Fizzy version
     runs-on: ubuntu-latest
     outputs:
       fizzy_ref: ${{ steps.resolve.outputs.fizzy_ref }}
@@ -24,6 +25,8 @@ jobs:
     steps:
       - name: Resolve Fizzy ref and image tag
         id: resolve
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           INPUT_REF="${{ inputs.fizzy_ref }}"
 
@@ -37,19 +40,31 @@ jobs:
               echo "fizzy_image_tag=$INPUT_REF" >> "$GITHUB_OUTPUT"
             fi
           else
-            echo "fizzy_ref=main" >> "$GITHUB_OUTPUT"
-            echo "fizzy_image_tag=main" >> "$GITHUB_OUTPUT"
+            LATEST_TAG=$(gh api /repos/basecamp/fizzy/releases \
+              --jq 'map(select(.tag_name | startswith("fizzy@"))) | .[0].tag_name')
+
+            if [ -n "$LATEST_TAG" ] && [ "$LATEST_TAG" != "null" ]; then
+              SHA="${LATEST_TAG#fizzy@}"
+              echo "fizzy_ref=$LATEST_TAG" >> "$GITHUB_OUTPUT"
+              echo "fizzy_image_tag=sha-$SHA" >> "$GITHUB_OUTPUT"
+            else
+              echo "::warning::No fizzy@ release found, falling back to main"
+              echo "fizzy_ref=main" >> "$GITHUB_OUTPUT"
+              echo "fizzy_image_tag=main" >> "$GITHUB_OUTPUT"
+            fi
           fi
 
-          echo "### Fizzy resolution" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Git ref: \`$(grep fizzy_ref "$GITHUB_OUTPUT" | head -1 | cut -d= -f2)\`" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Image tag: \`$(grep fizzy_image_tag "$GITHUB_OUTPUT" | head -1 | cut -d= -f2)\`" >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "### Fizzy resolution"
+            echo "- Git ref: \`$(grep fizzy_ref "$GITHUB_OUTPUT" | head -1 | cut -d= -f2)\`"
+            echo "- Image tag: \`$(grep fizzy_image_tag "$GITHUB_OUTPUT" | head -1 | cut -d= -f2)\`"
+          } >> "$GITHUB_STEP_SUMMARY"
 
-  ci:
+  test:
+    name: Test
     needs: resolve
-    uses: ./.github/workflows/test_and_publish.yml
+    uses: ./.github/workflows/_test.yml
     with:
       fizzy_ref: ${{ needs.resolve.outputs.fizzy_ref }}
       fizzy_image_tag: ${{ needs.resolve.outputs.fizzy_image_tag }}
-      push_image: false
     secrets: inherit

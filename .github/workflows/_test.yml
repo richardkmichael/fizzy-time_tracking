@@ -1,0 +1,57 @@
+on:
+  workflow_call:
+    inputs:
+      engine_ref:
+        description: "Engine git ref to checkout (defaults to triggering ref)"
+        type: string
+      fizzy_ref:
+        description: "Fizzy git ref for cloning during tests"
+        type: string
+        required: true
+      fizzy_image_tag:
+        description: "Docker image tag for the Fizzy base image"
+        type: string
+        required: true
+
+jobs:
+  test:
+    name: Run tests
+    runs-on: ubuntu-latest
+
+    env:
+      FIZZY_REF: ${{ inputs.fizzy_ref }}
+      FIZZY_IMAGE_TAG: ${{ inputs.fizzy_image_tag }}
+      BUNDLE_PATH: vendor/bundle
+
+    steps:
+      - name: Checkout engine
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.engine_ref || github.ref }}
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+          bundler-cache: true
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libvips-dev imagemagick libopenslide-dev
+
+      - name: Cache Fizzy bundle
+        uses: actions/cache@v4
+        with:
+          path: test/fizzy/vendor/bundle
+          key: fizzy-bundle-${{ runner.os }}-${{ env.FIZZY_REF }}-${{ github.run_id }}
+          restore-keys: fizzy-bundle-${{ runner.os }}-${{ env.FIZZY_REF }}-
+
+      - name: Set up Fizzy host app
+        run: bundle exec rake dev:setup
+
+      - name: Run engine tests
+        run: bundle exec rake test
+
+      - name: Run host tests
+        run: bundle exec rake test:fizzy
