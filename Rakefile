@@ -38,6 +38,7 @@ fizzy_gemfile = File.join(FIZZY_PATH, "Gemfile")
 ENV["BUNDLE_GEMFILE"] = fizzy_gemfile if File.exist?(fizzy_gemfile)
 
 require "bundler/setup"
+require "open3"
 
 task default: :test
 
@@ -238,8 +239,11 @@ def start_container(volume)
 end
 
 def docker(*args)
-  system("docker", *args, out: File::NULL, err: File::NULL) or
-    raise "docker #{args.join(' ')} failed"
+  out, err, status = Open3.capture3("docker", *args)
+  return if status.success?
+
+  detail = [ out, err ].map(&:strip).reject(&:empty?).join("\n")
+  raise "docker #{args.join(' ')} failed\n#{detail}"
 end
 
 def clone_fizzy
