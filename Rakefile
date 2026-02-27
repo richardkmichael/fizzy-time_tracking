@@ -107,24 +107,24 @@ namespace :prod do
       puts "#{CONTAINER_NAME} is already running."
     else
       puts "Pulling latest image..."
-      sh "docker", "pull", GHCR_IMAGE
+      docker "pull", GHCR_IMAGE
 
       current_id = image_id(GHCR_IMAGE)
 
       if container_exists?(CONTAINER_NAME)
         if container_image_id(CONTAINER_NAME) == current_id
-          sh "docker", "start", CONTAINER_NAME
+          docker "start", CONTAINER_NAME
           puts "Restarted #{CONTAINER_NAME}."
         else
           puts "Updating #{CONTAINER_NAME} to latest image..."
-          sh "docker", "rm", CONTAINER_NAME
+          docker "rm", CONTAINER_NAME
           start_container(volume)
         end
       else
         start_container(volume)
       end
 
-      sh "docker", "image", "prune", "-f"
+      docker "image", "prune", "-f"
     end
 
     puts
@@ -137,9 +137,9 @@ namespace :prod do
   desc "Remove all fizzy containers and images"
   task :clean do
     ensure_docker_running
-    sh "docker", "rm", "-f", CONTAINER_NAME rescue nil
-    sh "docker", "rmi", GHCR_IMAGE rescue nil
-    sh "docker", "image", "prune", "-f"
+    docker "rm", "-f", CONTAINER_NAME rescue nil
+    docker "rmi", GHCR_IMAGE rescue nil
+    docker "image", "prune", "-f"
     puts "Cleaned up #{CONTAINER_NAME} containers and images."
   end
 end
@@ -227,7 +227,7 @@ def start_container(volume)
   secret_key_base, _, status = Open3.capture3("docker", "run", "--rm", GHCR_IMAGE, "bin/rails", "secret")
   raise "Failed to generate SECRET_KEY_BASE" unless status.success?
 
-  sh "docker", "run", "-d",
+  docker "run", "-d",
     "--name", CONTAINER_NAME,
     "-p", "8080:80",
     "-e", "SECRET_KEY_BASE=#{secret_key_base.strip}",
@@ -235,6 +235,11 @@ def start_container(volume)
     "-v", "#{volume}:/rails/storage",
     GHCR_IMAGE
   puts "Started #{CONTAINER_NAME}."
+end
+
+def docker(*args)
+  system("docker", *args, out: File::NULL, err: File::NULL) or
+    raise "docker #{args.join(' ')} failed"
 end
 
 def clone_fizzy
