@@ -92,7 +92,6 @@ namespace :dev do
 end
 
 namespace :prod do
-
   desc "Run the GHCR image (rake prod:run[./data] or rake prod:run[my-volume])"
   task :run, [ :storage ] do |_t, args|
     storage = args.fetch(:storage, DEFAULT_VOLUME)
@@ -104,36 +103,45 @@ namespace :prod do
 
     ensure_docker_running
 
-    container_state = `docker inspect --format '{{.State.Running}}' #{CONTAINER_NAME} 2>/dev/null`.chomp
-    container_exists = $?.success?
-
-    if container_exists && container_state == "true"
-      puts "Container #{CONTAINER_NAME} is already running."
-    elsif container_exists
-      sh "docker start #{CONTAINER_NAME}"
-      puts "Restarted stopped container #{CONTAINER_NAME}."
+    if container_running?(CONTAINER_NAME)
+      puts "#{CONTAINER_NAME} is already running."
     else
-      secret_key = `docker run --rm #{GHCR_IMAGE} bin/rails secret`
-      raise "Failed to generate secret key" unless $?.success?
-      secret_key.chomp!
+      puts "Pulling latest image..."
+      sh "docker", "pull", GHCR_IMAGE
 
-      container_id = `docker run -d \
-        --name #{CONTAINER_NAME} \
-        -p 8080:80 \
-        -e SECRET_KEY_BASE=#{secret_key} \
-        -e DISABLE_SSL=true \
-        -v #{volume}:/rails/storage \
-        #{GHCR_IMAGE}`
-      raise "Failed to start container" unless $?.success?
-      container_id.chomp!
+      current_id = image_id(GHCR_IMAGE)
 
-      puts "Container started: #{container_id}"
+      if container_exists?(CONTAINER_NAME)
+        existing_id = container_image_id(CONTAINER_NAME)
+
+        if existing_id == current_id
+          sh "docker", "start", CONTAINER_NAME
+          puts "Restarted #{CONTAINER_NAME}."
+        else
+          puts "Removing outdated container #{CONTAINER_NAME}..."
+          sh "docker", "rm", CONTAINER_NAME
+          sh "docker", "rmi", existing_id rescue nil
+          start_container(volume)
+        end
+      else
+        start_container(volume)
+      end
     end
 
+    puts
     puts "URL:      http://localhost:8080"
     puts "Logs:     docker logs -f #{CONTAINER_NAME}"
     puts "Stop:     docker stop #{CONTAINER_NAME}"
     puts "Sign in:  docker exec #{CONTAINER_NAME} bin/rails runner 'puts Identity.find_or_create_by!(email_address: ARGV[0]).magic_links.create!.code' YOUR@EMAIL.COM"
+  end
+
+  desc "Remove all fizzy containers and images"
+  task :clean do
+    ensure_docker_running
+    sh "docker", "rm", "-f", CONTAINER_NAME rescue nil
+    sh "docker", "rmi", GHCR_IMAGE rescue nil
+    sh "docker", "image", "prune", "-f"
+    puts "Cleaned up #{CONTAINER_NAME} containers and images."
   end
 end
 
@@ -198,6 +206,36 @@ def ensure_docker_running
   puts
 
   raise "Docker did not start in time" unless system("docker info > /dev/null 2>&1")
+end
+
+def container_running?(name)
+  `docker inspect --format '{{.State.Running}}' #{name} 2>/dev/null`.strip == "true"
+end
+
+def container_exists?(name)
+  system("docker inspect #{name} > /dev/null 2>&1")
+end
+
+def image_id(image)
+  `docker inspect --format '{{.Id}}' #{image} 2>/dev/null`.strip
+end
+
+def container_image_id(name)
+  `docker inspect --format '{{.Image}}' #{name} 2>/dev/null`.strip
+end
+
+def start_container(volume)
+  secret_key_base, _, status = Open3.capture3("docker", "run", "--rm", GHCR_IMAGE, "bin/rails", "secret")
+  raise "Failed to generate SECRET_KEY_BASE" unless status.success?
+
+  sh "docker", "run", "-d",
+    "--name", CONTAINER_NAME,
+    "-p", "8080:80",
+    "-e", "SECRET_KEY_BASE=#{secret_key_base.strip}",
+    "-e", "DISABLE_SSL=true",
+    "-v", "#{volume}:/rails/storage",
+    GHCR_IMAGE
+  puts "Started #{CONTAINER_NAME}."
 end
 
 def clone_fizzy
