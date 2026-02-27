@@ -112,20 +112,19 @@ namespace :prod do
       current_id = image_id(GHCR_IMAGE)
 
       if container_exists?(CONTAINER_NAME)
-        existing_id = container_image_id(CONTAINER_NAME)
-
-        if existing_id == current_id
+        if container_image_id(CONTAINER_NAME) == current_id
           sh "docker", "start", CONTAINER_NAME
           puts "Restarted #{CONTAINER_NAME}."
         else
-          puts "Removing outdated container #{CONTAINER_NAME}..."
+          puts "Updating #{CONTAINER_NAME} to latest image..."
           sh "docker", "rm", CONTAINER_NAME
-          sh "docker", "rmi", existing_id rescue nil
           start_container(volume)
         end
       else
         start_container(volume)
       end
+
+      sh "docker", "image", "prune", "-f"
     end
 
     puts
