@@ -104,20 +104,13 @@ namespace :prod do
 
     ensure_docker_running
 
-    if container_running?(CONTAINER_NAME)
-      puts "#{CONTAINER_NAME} is already running."
-    else
-      puts "Pulling latest image..."
+    if !container_running?(CONTAINER_NAME)
       docker "pull", GHCR_IMAGE
 
-      current_id = image_id(GHCR_IMAGE)
-
       if container_exists?(CONTAINER_NAME)
-        if container_image_id(CONTAINER_NAME) == current_id
+        if container_image_id(CONTAINER_NAME) == image_id(GHCR_IMAGE)
           docker "start", CONTAINER_NAME
-          puts "Restarted #{CONTAINER_NAME}."
         else
-          puts "Updating #{CONTAINER_NAME} to latest image..."
           docker "rm", CONTAINER_NAME
           start_container(volume)
         end
@@ -137,12 +130,7 @@ namespace :prod do
 
   desc "Stop the running container"
   task :stop do
-    if container_running?(CONTAINER_NAME)
-      docker "stop", CONTAINER_NAME
-      puts "Stopped #{CONTAINER_NAME}."
-    else
-      puts "#{CONTAINER_NAME} is not running."
-    end
+    docker "stop", CONTAINER_NAME if container_running?(CONTAINER_NAME)
   end
 
   desc "Remove all fizzy containers and images"
@@ -245,7 +233,6 @@ def start_container(volume)
     "-e", "DISABLE_SSL=true",
     "-v", "#{volume}:/rails/storage",
     GHCR_IMAGE
-  puts "Started #{CONTAINER_NAME}."
 end
 
 def docker(*args)
