@@ -131,8 +131,18 @@ namespace :prod do
     puts
     puts "URL:      http://localhost:8080"
     puts "Logs:     docker logs -f #{CONTAINER_NAME}"
-    puts "Stop:     docker stop #{CONTAINER_NAME}"
+    puts "Stop:     rake prod:stop"
     puts "Sign in:  docker exec #{CONTAINER_NAME} bin/rails runner 'puts Identity.find_or_create_by!(email_address: ARGV[0]).magic_links.create!.code' YOUR@EMAIL.COM"
+  end
+
+  desc "Stop the running container"
+  task :stop do
+    if container_running?(CONTAINER_NAME)
+      docker "stop", CONTAINER_NAME
+      puts "Stopped #{CONTAINER_NAME}."
+    else
+      puts "#{CONTAINER_NAME} is not running."
+    end
   end
 
   desc "Remove all fizzy containers and images"
