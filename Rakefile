@@ -93,8 +93,8 @@ namespace :dev do
 end
 
 namespace :prod do
-  desc "Run the GHCR image (rake prod:run[./data] or rake prod:run[my-volume])"
-  task :run, [ :storage ] do |_t, args|
+  desc "Start the GHCR image (rake prod:start[./data] or rake prod:start[my-volume])"
+  task :start, [ :storage ] do |_t, args|
     storage = args.fetch(:storage, DEFAULT_VOLUME)
     volume = if storage.start_with?("/", ".")
       File.expand_path(storage, ENGINE_ROOT)

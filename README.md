@@ -106,13 +106,13 @@ FIZZY_IMAGE_TAG=sha-37d7f5c rake dev:build
 To run the image locally:
 
 ```bash
-rake prod:run
+rake prod:start
 ```
 
 This uses a Docker named volume for SQLite storage. Pass a path to bind mount a directory instead:
 
 ```bash
-rake prod:run[./data]
+rake prod:start[./data]
 ```
 
 The image is a drop-in replacement for `ghcr.io/basecamp/fizzy:main` with time tracking enabled.
