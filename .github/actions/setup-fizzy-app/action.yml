@@ -1,0 +1,35 @@
+name: Set up Fizzy app
+description: Install Ruby + system deps, cache bundles, clone Fizzy, migrate
+
+inputs:
+  fizzy_ref:
+    description: "Fizzy git ref for cloning"
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: "3.4"
+        bundler-cache: true
+
+    - name: Install system dependencies
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libvips-dev imagemagick libopenslide-dev
+
+    - name: Cache Fizzy bundle
+      uses: actions/cache@v4
+      with:
+        path: test/fizzy/vendor/bundle
+        key: fizzy-bundle-${{ runner.os }}-${{ inputs.fizzy_ref }}-${{ github.run_id }}
+        restore-keys: fizzy-bundle-${{ runner.os }}-${{ inputs.fizzy_ref }}-
+
+    - name: Clone Fizzy and prepare app
+      shell: bash
+      env:
+        FIZZY_REF: ${{ inputs.fizzy_ref }}
+      run: bundle exec rake dev:setup
