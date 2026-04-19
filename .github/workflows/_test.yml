@@ -23,17 +23,23 @@ jobs:
       BUNDLE_PATH: vendor/bundle
 
     steps:
+      - name: Checkout workflow tooling
+        uses: actions/checkout@v4
+
       - name: Checkout engine
         uses: actions/checkout@v4
         with:
           ref: ${{ inputs.engine_ref || github.ref }}
+          path: engine
 
       - name: Set up Fizzy app
         uses: ./.github/actions/setup-fizzy-app
         with:
           fizzy_ref: ${{ inputs.fizzy_ref }}
+          engine_path: engine
 
       - name: Run time_tracking engine tests
+        working-directory: engine
         run: bundle exec rake test
 
   fizzy_tests:
@@ -45,15 +51,21 @@ jobs:
       BUNDLE_PATH: vendor/bundle
 
     steps:
+      - name: Checkout workflow tooling
+        uses: actions/checkout@v4
+
       - name: Checkout engine
         uses: actions/checkout@v4
         with:
           ref: ${{ inputs.engine_ref || github.ref }}
+          path: engine
 
       - name: Set up Fizzy app
         uses: ./.github/actions/setup-fizzy-app
         with:
           fizzy_ref: ${{ inputs.fizzy_ref }}
+          engine_path: engine
 
       - name: Run fizzy app tests
+        working-directory: engine
         run: bundle exec rake test:fizzy

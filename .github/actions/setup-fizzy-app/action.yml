@@ -5,6 +5,9 @@ inputs:
   fizzy_ref:
     description: "Fizzy git ref for cloning"
     required: true
+  engine_path:
+    description: "Path to the engine checkout (where Gemfile/Rakefile live)"
+    default: "."
 
 runs:
   using: composite
@@ -14,6 +17,7 @@ runs:
       with:
         ruby-version: "3.4"
         bundler-cache: true
+        working-directory: ${{ inputs.engine_path }}
 
     - name: Install system dependencies
       shell: bash
@@ -24,12 +28,13 @@ runs:
     - name: Cache Fizzy bundle
       uses: actions/cache@v4
       with:
-        path: test/fizzy/vendor/bundle
+        path: ${{ inputs.engine_path }}/test/fizzy/vendor/bundle
         key: fizzy-bundle-${{ runner.os }}-${{ inputs.fizzy_ref }}-${{ github.run_id }}
         restore-keys: fizzy-bundle-${{ runner.os }}-${{ inputs.fizzy_ref }}-
 
     - name: Clone Fizzy and prepare app
       shell: bash
+      working-directory: ${{ inputs.engine_path }}
       env:
         FIZZY_REF: ${{ inputs.fizzy_ref }}
       run: bundle exec rake dev:setup
