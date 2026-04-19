@@ -104,16 +104,40 @@ namespace :prod do
 
     ensure_docker_running
 
-    if !container_running?(CONTAINER_NAME)
+    if container_exists?(CONTAINER_NAME)
+      current = container_storage_mount(CONTAINER_NAME)
+      if current != volume
+        puts
+        puts "Container #{CONTAINER_NAME} already exists with different storage:"
+        puts "  existing:  #{current}"
+        puts "  requested: #{volume}"
+        puts
+
+        print "Start container with its existing storage (#{current})? [Y/n] "
+        case $stdin.gets.to_s.strip.downcase
+        when "", "y", "yes"
+          volume = current
+          puts "Using existing storage: #{current}"
+        else
+          abort <<~MSG
+            Aborted. To switch storage, remove the container first:
+              bundle exec rake prod:stop
+              docker rm #{CONTAINER_NAME}
+              bundle exec rake prod:start[#{storage}]
+          MSG
+        end
+      end
+    end
+
+    unless container_running?(CONTAINER_NAME)
       docker "pull", GHCR_IMAGE
 
+      if container_exists?(CONTAINER_NAME) && container_image_id(CONTAINER_NAME) != image_id(GHCR_IMAGE)
+        docker "rm", CONTAINER_NAME
+      end
+
       if container_exists?(CONTAINER_NAME)
-        if container_image_id(CONTAINER_NAME) == image_id(GHCR_IMAGE)
-          docker "start", CONTAINER_NAME
-        else
-          docker "rm", CONTAINER_NAME
-          start_container(volume)
-        end
+        docker "start", CONTAINER_NAME
       else
         start_container(volume)
       end
@@ -220,6 +244,12 @@ end
 
 def container_image_id(name)
   `docker inspect --format '{{.Image}}' #{name} 2>/dev/null`.strip
+end
+
+# The container's /rails/storage mount source: named volume name for `-v name:...`,
+# absolute host path for `-v /path:...`. Matches the shape of `volume` in prod:start.
+def container_storage_mount(name)
+  `docker inspect --format '{{range .Mounts}}{{if eq .Destination "/rails/storage"}}{{if eq .Type "volume"}}{{.Name}}{{else}}{{.Source}}{{end}}{{end}}{{end}}' #{name} 2>/dev/null`.strip
 end
 
 def start_container(volume)
