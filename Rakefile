@@ -85,12 +85,40 @@ namespace :dev do
   desc "Clone and configure Fizzy host app for running engine tests"
   task :setup do
     clone_fizzy
-    add_engine_to_gemfile
+    install_engine_into_fizzy
+  end
 
-    in_fizzy "bundle", "install"
-    in_fizzy "bin/rails", "db:prepare"
-    in_fizzy "bin/rails", "generate", "fizzy_time_tracking:install"
-    in_fizzy "bin/rails", "db:migrate"
+  desc "Report the host app's Fizzy ref and whether a newer Fizzy release exists"
+  task :status do
+    current = fizzy_clone_ref or abort "Fizzy host app not found at #{FIZZY_PATH}. Run `rake dev:setup` first."
+    latest  = fizzy_ref
+
+    puts "Host app:       #{current}"
+    puts "Newest release: #{latest}"
+
+    if current == latest
+      puts "Up to date."
+    else
+      puts "A newer Fizzy release is available. Run `rake dev:update` to test against it."
+    end
+  end
+
+  desc "Move the host app to another Fizzy ref (newest release by default, or FIZZY_REF)"
+  task :update do
+    current = fizzy_clone_ref or abort "Fizzy host app not found at #{FIZZY_PATH}. Run `rake dev:setup` first."
+    target  = fizzy_ref
+
+    if current == target
+      puts "Fizzy host app already at #{target}, reinstalling the engine."
+    else
+      puts "Moving Fizzy host app: #{current} -> #{target}"
+      fetch_fizzy_ref(target)
+    end
+
+    # Unconditional, so an update that moved the clone but failed partway
+    # through the install can be recovered by running this task again.
+    install_engine_into_fizzy
+    puts "Fizzy host app at #{fizzy_clone_ref}. The development database was preserved."
   end
 end
 
@@ -296,6 +324,15 @@ def clone_fizzy
   end
 end
 
+def install_engine_into_fizzy
+  add_engine_to_gemfile
+
+  in_fizzy "bundle", "install"
+  in_fizzy "bin/rails", "db:prepare"
+  in_fizzy "bin/rails", "generate", "fizzy_time_tracking:install"
+  in_fizzy "bin/rails", "db:migrate"
+end
+
 # The ref the host app clone currently sits at. Read from the clone itself
 # rather than recorded separately, so it cannot drift from reality.
 def fizzy_clone_ref
@@ -314,6 +351,20 @@ end
 def git_in_fizzy(*args)
   out, status = Open3.capture2e("git", "-C", FIZZY_PATH, *args)
   status.success? ? out.strip : nil
+end
+
+# The clone is shallow and single-ref, so moving it is a fetch of the target
+# ref rather than a checkout of something already present.
+def fetch_fizzy_ref(target)
+  if target.start_with?("fizzy@")
+    sh "git", "-C", FIZZY_PATH, "fetch", "--depth", "1", "origin",
+      "+refs/tags/#{target}:refs/tags/#{target}"
+    sh "git", "-C", FIZZY_PATH, "checkout", "--force", target
+  else
+    sh "git", "-C", FIZZY_PATH, "fetch", "--depth", "1", "origin",
+      "+refs/heads/#{target}:refs/remotes/origin/#{target}"
+    sh "git", "-C", FIZZY_PATH, "checkout", "--force", "origin/#{target}"
+  end
 end
 
 def add_engine_to_gemfile
