@@ -48,7 +48,19 @@ end
 fizzy_gemfile = File.join(FIZZY_PATH, "Gemfile")
 ENV["BUNDLE_GEMFILE"] = fizzy_gemfile if File.exist?(fizzy_gemfile)
 
-require "bundler/setup"
+require "bundler"
+
+# A host app whose bundle is not installed — a fresh clone, or one just moved to
+# a new Fizzy release — would otherwise stop this Rakefile loading at all,
+# including dev:setup and dev:update, the tasks that install it.
+begin
+  Bundler.setup
+rescue Bundler::BundlerError => e
+  warn "Fizzy host app bundle is not usable (#{e.class}). Continuing without it;"
+  warn "run `rake dev:update` to reinstall, or `rake dev:setup` for a fresh clone."
+  Bundler.reset!
+end
+
 require "open3"
 
 task default: :test
