@@ -126,22 +126,51 @@ Run `actionlint .github/workflows/*.yml` before committing any workflow changes.
 
 ## CI Architecture
 
-Three workflow files in `.github/workflows/`:
+Three workflow files in `.github/workflows/`, plus one composite action:
 
-- `ci.yml` — Reusable workflow (`workflow_call`). Three jobs: `test` (AMD64, always), `build` (matrix: `ubuntu-latest` + `ubuntu-24.04-arm`, native AMD64 and ARM64, only when `push_image: true`), `manifest` (merges arch-suffixed images into a single multi-arch tag, only when `push_image: true`).
-- `development.yml` — Caller workflow. Triggers on push/PR to `development`. Tests only; never builds or pushes an image. Resolves the newest Fizzy release the same way `release.yml` does, and accepts a `fizzy_ref` dispatch input to override it.
-- `release.yml` — Caller workflow. Triggers on push of the `latest` git tag (always builds) and on a 4-hour schedule (polls Fizzy GitHub Releases for the latest `fizzy@SHA` release, skips if already built). Calls `ci.yml` with `engine_ref: latest`, `engine_image_tag: latest`, and `push_image: true`.
+- `_test.yml` — Reusable workflow (`workflow_call`). Two jobs, `engine_tests` and `fizzy_tests`,
+  running the engine's suite and the host app's own suite. Takes `engine_ref`, `fizzy_ref`, and
+  `fizzy_image_tag`.
+- `development.yml` — Triggers on push and pull request to `development`, plus manual dispatch
+  with a `fizzy_ref` override. Job `resolve` picks the Fizzy release to test against; job `test`
+  calls `_test.yml`. Never builds or pushes an image.
+- `release.yml` — Triggers on push of the `latest` git tag, on a 4-hour schedule, and on manual
+  dispatch (`fizzy_ref`, `force`). Jobs: `check` resolves the Fizzy release and decides whether to
+  build; `test` calls `_test.yml`; `build_amd64` and `build_arm64` build on native runners and push
+  arch-suffixed tags; `combine_images` merges those into `:latest`; `release` creates the git tag
+  and GitHub Release; `record` writes the skip marker.
+- `.github/actions/setup-fizzy-app` — Composite action. Installs Ruby from `.ruby-version`,
+  installs system dependencies, caches the host app bundle, and runs `rake dev:setup`.
 
-Two environment variables control Fizzy references:
+Every job declares its own `permissions` block and the repository default is read-only. The release
+job creates the tag and release with `GITHUB_TOKEN` under `contents: write`; no personal access
+token is involved, because the tag it creates triggers no workflow.
 
-- `FIZZY_REF` — Git ref for `rake dev:setup` (clones Fizzy for testing). Examples: `main`, `fizzy@37d7f5c`
-- `FIZZY_IMAGE_TAG` — Docker tag for the `FROM` line in the Dockerfile. Examples: `main`, `sha-37d7f5c`
+Both callers resolve Fizzy the same way: the newest `fizzy@SHA` release by publication date from the
+GitHub Releases API. That endpoint is not reliably ordered, so the newest entry has to be selected
+explicitly rather than taken from the head of the array.
 
-Tag format mapping: Fizzy release tags (`fizzy@37d7f5c`) correspond to Docker image tags (`sha-37d7f5c`). Fizzy creates Docker `sha-*` tags on every push to main, but `fizzy@SHA` git tags only for releases. Always use GitHub Releases API (not Docker SHA detection) to find a ref that is guaranteed to have a corresponding git tag.
+Two variables control which Fizzy is used. `FIZZY_REF` is primary and `FIZZY_IMAGE_TAG` derives from
+it:
 
-The `latest` git tag promotes engine code to the stable image. Use `rake release` (which runs `git tag -f latest HEAD && git push origin latest --force`).
+- `FIZZY_REF` — Git ref for `rake dev:setup` (clones Fizzy for testing). Examples: `main`,
+  `fizzy@37d7f5c`
+- `FIZZY_IMAGE_TAG` — Docker tag for the `FROM` line in the Dockerfile. Examples: `main`,
+  `sha-37d7f5c`
 
-The `release.yml` skip logic uses GitHub Actions cache (`latest-fizzy-built-{tag}`) to avoid rebuilding when the Fizzy base image hasn't changed. Cache expires after 7 days (GitHub default).
+Tag format mapping: Fizzy release tags (`fizzy@37d7f5c`) correspond to Docker image tags
+(`sha-37d7f5c`). Fizzy creates Docker `sha-*` tags on every push to main, but `fizzy@SHA` git tags
+only for releases. Always use the GitHub Releases API (not Docker SHA detection) to find a ref
+that is guaranteed to have a corresponding git tag.
+
+The `latest` git tag promotes engine code to the stable image. Use `rake release` (which runs
+`git tag -f latest HEAD && git push origin latest --force`).
+
+The `release.yml` skip logic uses a GitHub Actions cache (`latest-fizzy-built-{tag}`) to avoid
+rebuilding when the Fizzy base image has not changed. The marker is written by `record`, which runs
+only after `release` succeeds, so a failed release cannot suppress the next scheduled run.
+Restoring a cache renews its expiry, so a marker survives for as long as the schedule keeps
+hitting it.
 
 ## Rakefile
 
