@@ -227,7 +227,7 @@ jobs:
 
   record:
     name: Cache base Fizzy version
-    needs: [check, combine_images]
+    needs: [check, combine_images, release]
     runs-on: ubuntu-latest
     steps:
       - name: Record Fizzy image tag in cache
