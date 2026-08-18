@@ -59,12 +59,14 @@ if File.directory?(FIZZY_PATH)
 
   desc "Run engine tests via Fizzy host app"
   task :test do
+    announce_fizzy_ref
     in_fizzy "bin/rails", "test", *engine_test_dirs
   end
 
   namespace :test do
     desc "Run Fizzy's own test suite (catches regressions in the host app)"
     task :fizzy do
+      announce_fizzy_ref
       in_fizzy "bin/rails", "test"
     end
   end
@@ -286,11 +288,32 @@ end
 
 def clone_fizzy
   if File.exist?(File.join(FIZZY_PATH, "Gemfile"))
-    puts "Fizzy already present at #{FIZZY_PATH}, skipping clone."
+    puts "Fizzy host app present at #{FIZZY_PATH}, pinned to #{fizzy_clone_ref}."
+    puts "Leaving it there. Run `rake dev:update` to move it to another release."
   else
     sh "git", "clone", "https://github.com/basecamp/fizzy.git", FIZZY_PATH,
       "--branch", fizzy_ref, "--single-branch", "--depth", "1"
   end
+end
+
+# The ref the host app clone currently sits at. Read from the clone itself
+# rather than recorded separately, so it cannot drift from reality.
+def fizzy_clone_ref
+  return nil unless File.directory?(File.join(FIZZY_PATH, ".git"))
+
+  git_in_fizzy("describe", "--tags", "--exact-match", "HEAD") ||
+    git_in_fizzy("rev-parse", "--short", "HEAD")
+end
+
+# Named before every suite run so a failure is always attributable to a known
+# Fizzy version. Deliberately local: the inner loop stays offline and fast.
+def announce_fizzy_ref
+  puts "Running against Fizzy #{fizzy_clone_ref} (`rake dev:status` checks for a newer release)"
+end
+
+def git_in_fizzy(*args)
+  out, status = Open3.capture2e("git", "-C", FIZZY_PATH, *args)
+  status.success? ? out.strip : nil
 end
 
 def add_engine_to_gemfile
