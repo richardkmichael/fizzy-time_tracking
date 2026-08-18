@@ -129,7 +129,7 @@ Run `actionlint .github/workflows/*.yml` before committing any workflow changes.
 Three workflow files in `.github/workflows/`:
 
 - `ci.yml` — Reusable workflow (`workflow_call`). Three jobs: `test` (AMD64, always), `build` (matrix: `ubuntu-latest` + `ubuntu-24.04-arm`, native AMD64 and ARM64, only when `push_image: true`), `manifest` (merges arch-suffixed images into a single multi-arch tag, only when `push_image: true`).
-- `development.yml` — Caller workflow. Triggers on push/PR to `development`. Tests only (`push_image: false`). Tests against `fizzy:main` and `git clone --branch main`. Simple; no SHA detection.
+- `development.yml` — Caller workflow. Triggers on push/PR to `development`. Tests only; never builds or pushes an image. Resolves the newest Fizzy release the same way `release.yml` does, and accepts a `fizzy_ref` dispatch input to override it.
 - `release.yml` — Caller workflow. Triggers on push of the `latest` git tag (always builds) and on a 4-hour schedule (polls Fizzy GitHub Releases for the latest `fizzy@SHA` release, skips if already built). Calls `ci.yml` with `engine_ref: latest`, `engine_image_tag: latest`, and `push_image: true`.
 
 Two environment variables control Fizzy references:
