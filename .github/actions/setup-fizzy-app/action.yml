@@ -15,7 +15,7 @@ runs:
     - name: Set up Ruby
       uses: ruby/setup-ruby@v1
       with:
-        ruby-version: "3.4.7" # Keep in step with the Gemfile's ruby directive
+        ruby-version: .ruby-version
         bundler-cache: true
         working-directory: ${{ inputs.engine_path }}
 

@@ -2,3 +2,6 @@ Gemfile.lock
 pkg/
 test/fizzy/
 tmp/
+
+# Tracked here: CI reads it to install the same Ruby the host app pins.
+!.ruby-version
