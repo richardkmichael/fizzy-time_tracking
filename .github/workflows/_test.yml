@@ -17,6 +17,7 @@ jobs:
   engine_tests:
     name: Run time_tracking engine tests
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     permissions:
       contents: read
 
@@ -47,6 +48,7 @@ jobs:
   fizzy_tests:
     name: Run fizzy app tests
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     permissions:
       contents: read
 

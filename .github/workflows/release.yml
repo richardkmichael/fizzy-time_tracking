@@ -24,6 +24,7 @@ jobs:
   check:
     name: Check whether to build
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     permissions:
       contents: read
     outputs:
@@ -135,6 +136,7 @@ jobs:
     needs: [check, test]
     if: needs.check.outputs.should_build == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 40
     permissions:
       contents: read
       packages: write
@@ -169,6 +171,7 @@ jobs:
     needs: [check, test]
     if: needs.check.outputs.should_build == 'true'
     runs-on: ubuntu-24.04-arm
+    timeout-minutes: 40
     permissions:
       contents: read
       packages: write
@@ -203,6 +206,7 @@ jobs:
     needs: [check, build_amd64, build_arm64]
     if: needs.check.outputs.should_build == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
       packages: write
@@ -240,6 +244,7 @@ jobs:
     name: Cache base Fizzy version
     needs: [check, combine_images, release]
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     permissions:
       contents: read
     steps:
@@ -257,6 +262,7 @@ jobs:
     name: Create GitHub release
     needs: [check, combine_images]
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: write
     steps:

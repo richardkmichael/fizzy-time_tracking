@@ -19,6 +19,7 @@ jobs:
   resolve:
     name: Resolve Fizzy version
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     permissions:
       contents: read
     outputs:
