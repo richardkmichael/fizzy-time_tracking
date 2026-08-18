@@ -19,6 +19,8 @@ jobs:
   resolve:
     name: Resolve Fizzy version
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       fizzy_ref: ${{ steps.resolve.outputs.fizzy_ref }}
       fizzy_image_tag: ${{ steps.resolve.outputs.fizzy_image_tag }}
