@@ -46,8 +46,9 @@ jobs:
               echo "fizzy_image_tag=$INPUT_REF" >> "$GITHUB_OUTPUT"
             fi
           else
-            LATEST_TAG=$(gh api /repos/basecamp/fizzy/releases \
-              --jq 'map(select(.tag_name | startswith("fizzy@"))) | .[0].tag_name')
+            LATEST_TAG=$(gh api '/repos/basecamp/fizzy/releases?per_page=100' \
+              --jq 'map(select((.tag_name | startswith("fizzy@")) and (.draft == false))) |
+                    sort_by(.published_at) | last | .tag_name')
 
             if [ -n "$LATEST_TAG" ] && [ "$LATEST_TAG" != "null" ]; then
               SHA="${LATEST_TAG#fizzy@}"
