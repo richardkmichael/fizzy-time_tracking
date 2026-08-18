@@ -11,26 +11,37 @@
 
 ENGINE_ROOT = __dir__
 FIZZY_PATH  = ENV.fetch("FIZZY_PATH") { File.expand_path("test/fizzy", ENGINE_ROOT) }
-def fizzy_image_tag
-  @fizzy_image_tag ||= ENV.fetch("FIZZY_IMAGE_TAG") { detect_latest_fizzy_image_tag }
-end
-
+# The git ref the host app is cloned at. Defaults to Fizzy's newest release,
+# which is what CI builds against, so local runs and CI agree.
 def fizzy_ref
   @fizzy_ref ||= ENV.fetch("FIZZY_REF") do
-    fizzy_image_tag.start_with?("sha-") ? "main" : fizzy_image_tag
+    if (tag = ENV["FIZZY_IMAGE_TAG"])
+      # An arbitrary sha- image tag has no matching git tag, so clone main.
+      tag.start_with?("sha-") ? "main" : tag
+    else
+      latest_fizzy_release || "main"
+    end
   end
 end
 
-def detect_latest_fizzy_image_tag
-  @detected_tag ||= begin
-    tag = `gh api /orgs/basecamp/packages/container/fizzy/versions \
-      --jq '[.[] | select(.metadata.container.tags | any(. == "main"))]
-             | .[0].metadata.container.tags
-             | map(select(startswith("sha-") and test("^sha-[a-f0-9]{7}$")))
-             | .[0]' 2>/dev/null`.strip
-    (tag.empty? || tag == "null") ? "main" : tag
+# The Docker tag for the Dockerfile's FROM line, derived from the git ref:
+# release "fizzy@37d7f5c" corresponds to image "sha-37d7f5c".
+def fizzy_image_tag
+  @fizzy_image_tag ||= ENV.fetch("FIZZY_IMAGE_TAG") do
+    fizzy_ref.start_with?("fizzy@") ? "sha-#{fizzy_ref.delete_prefix("fizzy@")}" : fizzy_ref
+  end
+end
+
+# Resolved from GitHub Releases rather than Docker tags: Fizzy publishes a
+# sha- image on every push to main, but a git tag only for a release.
+def latest_fizzy_release
+  @latest_fizzy_release ||= begin
+    tag = `gh api '/repos/basecamp/fizzy/releases?per_page=100' \
+      --jq 'map(select((.tag_name | startswith("fizzy@")) and (.draft == false)))
+             | sort_by(.published_at) | last | .tag_name' 2>/dev/null`.strip
+    (tag.empty? || tag == "null") ? nil : tag
   rescue
-    "main"
+    nil
   end
 end
 
