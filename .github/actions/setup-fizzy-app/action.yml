@@ -21,9 +21,13 @@ runs:
 
     - name: Install system dependencies
       shell: bash
+      # Runners occasionally fall back from their local mirror to
+      # archive.ubuntu.com, which can hang indefinitely without these.
+      env:
+        APT_OPTS: -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30
       run: |
-        sudo apt-get update
-        sudo apt-get install -y libvips-dev imagemagick libopenslide-dev
+        sudo apt-get update $APT_OPTS
+        sudo apt-get install -y $APT_OPTS libvips-dev imagemagick libopenslide-dev
 
     - name: Cache Fizzy bundle
       uses: actions/cache@v4
